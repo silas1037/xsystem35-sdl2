@@ -456,10 +456,10 @@ int main(int argc, char **argv) {
 		chdir(argv[2]);
 #endif
 #ifdef _WIN32
-	if (argc == 1) {
-		if (!select_game_folder())
-			return 0;
-	}
+	//if (argc == 1) {
+	//	if (!select_game_folder())
+	//		return 0;
+	//}
 #endif
 	
 	load_profile();
