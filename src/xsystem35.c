@@ -91,7 +91,7 @@ static int debuglv = DEBUGLEVEL;
 static int audio_buffer_size = 0;
 
 /* font name from rcfile */
-static char *fontname_tt[FONTTYPEMAX] = {DEFAULT_GOTHIC_TTF, DEFAULT_MINCHO_TTF};
+static char *fontname_tt[FONTTYPEMAX] = {DEFAULT_SourceHanSansCN_Normal_TTF, DEFAULT_GOTHIC_TTF, DEFAULT_MINCHO_TTF};
 static char fontface[FONTTYPEMAX];
 
 static boolean font_noantialias;
