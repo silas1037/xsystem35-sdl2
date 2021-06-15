@@ -30,7 +30,7 @@ Section
 
 	WriteRegStr HKLM "Software\Kichikuou\xsystem35\profile" "ttfont_gothic" "$INSTDIR\fonts\MTLc3m.ttf"
 	WriteRegStr HKLM "Software\Kichikuou\xsystem35\profile" "ttfont_mincho" "$INSTDIR\fonts\mincho.otf"
-	WriteRegStr HKLM "Software\Kichikuou\xsystem35\profile" "ttfont_SourceHanSansCN_Normal" "$INSTDIR\fonts\SourceHanSansCN_Normal.otf"
+	WriteRegStr HKLM "Software\Kichikuou\xsystem35\profile" "ttfont_SourceHanSansCN_Normal" "$INSTDIR\fonts\SourceHanSansCN-Normal.otf"
 
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\xsystem35" "DisplayName" "xsystem35 (remove only)"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\xsystem35" "UninstallString" '"$INSTDIR\uninstall.exe"'

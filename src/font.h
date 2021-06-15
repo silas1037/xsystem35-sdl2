@@ -29,7 +29,7 @@
 #include "portab.h"
 
 /* font の種類 */
-#define FONTTYPEMAX 2
+#define FONTTYPEMAX 3
 
 extern void font_init(void);
 extern void font_set_name_and_index(int type, const char *name, int index);

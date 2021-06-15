@@ -3,7 +3,7 @@ install(FILES
   MTLc3m.ttf.license
   mincho.otf
   mincho.otf.license
-  SourceHanSansCN_Normal.otf
+  SourceHanSansCN-Normal.otf
   DESTINATION share/xsystem35/fonts)
 
 # pyftsubset is included in fonttools.

@@ -53,8 +53,17 @@ jobs:
       working-directory: installer
       run: ./make-installer.sh ../out/release ${{ matrix.installer }}.nsi
 
-    - name: Upload
-      uses: actions/upload-artifact@v2
+    # - name: Upload
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: ${{ matrix.installer }}
+    #     path: installer/${{ matrix.installer }}.exe
+
+    - uses: "marvinpinto/action-automatic-releases@latest"
       with:
-        name: ${{ matrix.installer }}
-        path: installer/${{ matrix.installer }}.exe
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "v0.90.0"
+        prerelease: true
+        title: "Windows Debugger"
+        files: |
+          installer/${{ matrix.installer }}.exe
