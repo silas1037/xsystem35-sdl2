@@ -171,7 +171,7 @@ void ags_setWindowTitle(const char *src) {
 	strcpy(d, utf);
 	if (!strcmp(utf,"Rance4 -Legacy of the Sect- For Win95 "))
 	{
-		strcpy(d, "【卡拉同好会】兰斯IV -教团的遗产- v0.90 内测版");
+		strcpy(d, "【卡拉保护协会】兰斯IV -教团的遗产- v1.0");
 	}
 	sdl_setWindowTitle(d);
 	free(utf);
