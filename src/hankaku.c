@@ -177,6 +177,7 @@ static char *zen2han_utf8(const char *src) {
 	while (*p) {
 		const char *prev = p;
 		switch (utf8_next_codepoint(&p)) {
+		/*
 		case L'’': *dst++ = '\''; break;
 		case L'”': *dst++ = '"'; break;
 		case L'　': *dst++ = ' '; break;
@@ -335,6 +336,7 @@ static char *zen2han_utf8(const char *src) {
 		case L'｝': *dst++ = '}'; break;
 		case L'￣': *dst++ = '~'; break;
 		case L'￥': *dst++ = '\\'; break;
+		*/
 		default:
 			while (prev < p)
 				*dst++ = *prev++;
