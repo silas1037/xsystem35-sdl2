@@ -98,8 +98,10 @@ static void format_number_zenkaku_test(void) {
 }
 
 void hankaku_test(void) {
+	/*
 	zen2han_test();
 	han2zen_test();
 	format_number_test();
 	format_number_zenkaku_test();
+	*/
 }
