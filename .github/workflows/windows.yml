@@ -6,14 +6,15 @@ jobs:
     runs-on: windows-2019
     strategy:
       matrix:
-        mingw: ["MINGW32", "MINGW64"]
+        #mingw: ["MINGW32", "MINGW64"]
+        mingw: ["MINGW32"]
         include:
           - mingw: "MINGW32"
             package: "mingw-w64-i686"
             installer: "xsystem35-32bit"
-          - mingw: "MINGW64"
-            package: "mingw-w64-x86_64"
-            installer: "xsystem35-64bit"
+          #- mingw: "MINGW64"
+          #  package: "mingw-w64-x86_64"
+          #  installer: "xsystem35-64bit"
     defaults:
       run:
         shell: bash.exe --login -eo pipefail "{0}"
