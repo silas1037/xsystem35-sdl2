@@ -1,8 +1,5 @@
 /*
- * cmdt.c  SYSTEM35 T command
- *
- * Copyright (C) 1997-1998 Masaki Chikama (Wren) <chikama@kasumi.ipl.mech.nagoya-u.ac.jp>
- *               1998-                           <masaki-c@is.aist-nara.ac.jp>
+ * Copyright (C) 2021 kichikuou <KichikuouChrome@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,20 +15,30 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
-*/
-/* $Id: cmdt.c,v 1.8 2006/04/21 16:40:48 chikama Exp $ */
+ */
 
-#include <stdio.h>
+#ifndef __DEBUGGER_H__
+#define __DEBUGGER_H__
+
 #include "portab.h"
-#include "xsystem35.h"
-#include "scenario.h"
-#include "message.h"
 
-void commandT() {
-	/* 文字の表示開始座標を指定する */
-	int x = getCaliValue();
-	int y = getCaliValue();
-	msg_setMessageLocation(x, y);
-	
-	DEBUG_COMMAND("T %d,%d:\n",x,y);
-}
+typedef enum {
+	DBG_RUNNING,
+	DBG_STOPPED_ENTRY,
+	DBG_STOPPED_STEP,
+	DBG_STOPPED_NEXT,
+	DBG_STOPPED_BREAKPOINT,
+	DBG_STOPPED_INTERRUPT,
+} DebuggerState;
+
+extern DebuggerState dbg_state;
+
+#define BREAKPOINT 0x0f
+
+#define dbg_trapped() (dbg_state != DBG_RUNNING)
+#define dbg_interrupted() (dbg_state == DBG_STOPPED_INTERRUPT)
+void dbg_init(const char *symbols_path);
+void dbg_main(void);
+int dbg_handle_breakpoint(int page, int addr);
+
+#endif // __DEBUGGER_H__

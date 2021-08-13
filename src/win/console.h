@@ -1,8 +1,5 @@
 /*
- * cmdt.c  SYSTEM35 T command
- *
- * Copyright (C) 1997-1998 Masaki Chikama (Wren) <chikama@kasumi.ipl.mech.nagoya-u.ac.jp>
- *               1998-                           <masaki-c@is.aist-nara.ac.jp>
+ * Copyright (C) 2021 <KichikuouChrome@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,20 +15,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
-*/
-/* $Id: cmdt.c,v 1.8 2006/04/21 16:40:48 chikama Exp $ */
+ */
+#ifndef __WIN_CONSOLE_H__
+#define __WIN_CONSOLE_H__
 
-#include <stdio.h>
-#include "portab.h"
-#include "xsystem35.h"
-#include "scenario.h"
-#include "message.h"
+void win_alloc_console(void);
+void win_set_ctrl_c_handler(void (*handler)(int));
 
-void commandT() {
-	/* 文字の表示開始座標を指定する */
-	int x = getCaliValue();
-	int y = getCaliValue();
-	msg_setMessageLocation(x, y);
-	
-	DEBUG_COMMAND("T %d,%d:\n",x,y);
-}
+#endif  // __WIN_CONSOLE_H__
