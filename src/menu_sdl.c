@@ -39,8 +39,8 @@ void menu_open(void) {
 
 void menu_quitmenu_open(void) {
 	const SDL_MessageBoxButtonData buttons[] = {
-		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "退出" },
-		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "取消" },
+		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "取消" },
+		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "退出" },
 	};
 	const SDL_MessageBoxData messagebox_data = {
 		.flags = SDL_MESSAGEBOX_INFORMATION,
