@@ -170,7 +170,7 @@ void ags_setWindowTitle(const char *src) {
 	if (NULL == (d = malloc(strlen(utf) + strlen(TITLEHEAD) + 1))) {
 		NOMEMERR();
 	}
-	strcpy(d, TITLEHEAD);
+	//strcpy(d, TITLEHEAD);
 	strcat(d, utf);
 	sdl_setWindowTitle(d);
 	free(utf);

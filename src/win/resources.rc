@@ -9,18 +9,19 @@ LANGUAGE LANG_ENGLISH, SUBLANG_NEUTRAL
 
 IDR_MENU1 MENU DISCARDABLE
 {
-    POPUP "File"
+    POPUP "文件"
     {
-        MENUITEM "Save Screenshot",             ID_SCREENSHOT
-        MENUITEM "Restart",                     ID_RESTART
         MENUITEM "Exit",                        ID_EXIT
+        MENUITEM "截图保存",                    ID_SCREENSHOT
+        MENUITEM "重启",                        ID_RESTART
+        MENUITEM "退出",                        ID_EXIT
     }
-    POPUP "Screen"
+    POPUP "窗口"
     {
-        MENUITEM "Window",                      ID_SCREEN_WINDOW
-        MENUITEM "Fullscreen",                  ID_SCREEN_FULL
+        MENUITEM "窗口",                        ID_SCREEN_WINDOW
+        MENUITEM "全屏",                        ID_SCREEN_FULL
     }
-    MENUITEM "MsgSkip[off]",                    ID_MSGSKIP
+    MENUITEM "快进[off]",                       ID_MSGSKIP
 }
 
 STRINGTABLE
