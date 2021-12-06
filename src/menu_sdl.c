@@ -39,14 +39,14 @@ void menu_open(void) {
 
 void menu_quitmenu_open(void) {
 	const SDL_MessageBoxButtonData buttons[] = {
-		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Quit" },
-		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Cancel" },
+		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "退出" },
+		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "取消" },
 	};
 	const SDL_MessageBoxData messagebox_data = {
 		.flags = SDL_MESSAGEBOX_INFORMATION,
 		.window = sdl_window,
-		.title = "Confirm",
-		.message = "Quit xsystem35?",
+		.title = "退出",
+		.message = "确认退出？",
 		.numbuttons = SDL_arraysize(buttons),
 		.buttons = buttons,
 	};
