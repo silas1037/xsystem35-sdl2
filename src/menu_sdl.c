@@ -68,8 +68,8 @@ void menu_resetmenu_open(void) {
 	const SDL_MessageBoxData messagebox_data = {
 		.flags = SDL_MESSAGEBOX_INFORMATION,
 		.window = sdl_window,
-		.title = "Confirm",
-		.message = "Restart the game?",
+		.title = "确认",
+		.message = "重启游戏？",
 		.numbuttons = SDL_arraysize(buttons),
 		.buttons = buttons,
 	};
