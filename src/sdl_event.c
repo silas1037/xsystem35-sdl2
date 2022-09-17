@@ -44,12 +44,11 @@ static void keyEventProsess(SDL_KeyboardEvent *e, boolean pressed);
 
 /* pointer の状態 */
 static int mousex, mousey, mouseb;
+static int mouse_wheel_up, mouse_wheel_down;
 boolean RawKeyInfo[256];
 
-#if HAVE_SDLJOY
 /* SDL Joystick */
 static int joyinfo=0;
-#endif
 
 static int mouse_to_rawkey(int button) {
 	switch(button) {
@@ -158,6 +157,18 @@ static void sdl_getEvent(void) {
 			mousey = e.motion.y;
 			send_agsevent(AGSEVENT_MOUSE_MOTION, 0);
 			break;
+
+		case SDL_MOUSEWHEEL:
+			{
+				int y = e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1 : 1);
+				if (y > 0)
+					mouse_wheel_up += y;
+				else if (y < 0)
+					mouse_wheel_down -= y;
+				send_agsevent(AGSEVENT_MOUSE_WHEEL, y);
+				break;
+			}
+
 		case SDL_MOUSEBUTTONDOWN:
 			mouseb |= (1 << e.button.button);
 			RawKeyInfo[mouse_to_rawkey(e.button.button)] = TRUE;
@@ -206,7 +217,10 @@ static void sdl_getEvent(void) {
 			mousey = e.tfinger.y * view_h;
 			break;
 
-#if HAVE_SDLJOY
+		case SDL_JOYDEVICEADDED:
+			sdl_joy_open(e.jdevice.which);
+			break;
+
 		case SDL_JOYAXISMOTION:
 			if (abs(e.jaxis.value) < 0x4000) {
 				joyinfo &= e.jaxis.axis == 0 ? ~0xc : ~3;
@@ -216,10 +230,24 @@ static void sdl_getEvent(void) {
 				joyinfo |= 1 << i;
 			}
 			break;
+
 		case SDL_JOYBALLMOTION:
 			break;
+
 		case SDL_JOYHATMOTION:
+			joyinfo &= ~(SYS35KEY_UP | SYS35KEY_DOWN | SYS35KEY_LEFT | SYS35KEY_RIGHT);
+			switch (e.jhat.value) {
+			case SDL_HAT_UP:        joyinfo |= SYS35KEY_UP;    break;
+			case SDL_HAT_DOWN:      joyinfo |= SYS35KEY_DOWN;  break;
+			case SDL_HAT_LEFT:      joyinfo |= SYS35KEY_LEFT;  break;
+			case SDL_HAT_RIGHT:     joyinfo |= SYS35KEY_RIGHT; break;
+			case SDL_HAT_LEFTUP:    joyinfo |= SYS35KEY_LEFT  | SYS35KEY_UP;   break;
+			case SDL_HAT_RIGHTUP:   joyinfo |= SYS35KEY_RIGHT | SYS35KEY_UP;   break;
+			case SDL_HAT_LEFTDOWN:  joyinfo |= SYS35KEY_LEFT  | SYS35KEY_DOWN; break;
+			case SDL_HAT_RIGHTDOWN: joyinfo |= SYS35KEY_RIGHT | SYS35KEY_DOWN; break;
+			}
 			break;
+
 		case SDL_JOYBUTTONDOWN:
 		case SDL_JOYBUTTONUP:
 			if (e.jbutton.button < 4) {
@@ -233,9 +261,9 @@ static void sdl_getEvent(void) {
 				}
 			}
 			break;
-#endif
+
 		default:
-			NOTICE("ev %x\n", e.type);
+			NOTICE("ev %x", e.type);
 			break;
 		}
 	}
@@ -287,8 +315,8 @@ int sdl_getMouseInfo(MyPoint *p) {
 	}
 	
 	if (p) {
-		p->x = mousex - winoffset_x;
-		p->y = mousey - winoffset_y;
+		p->x = mousex;
+		p->y = mousey;
 	}
 
 	int m1 = mouseb & (1 << 1) ? SYS35KEY_RET : 0;
@@ -296,11 +324,20 @@ int sdl_getMouseInfo(MyPoint *p) {
 	return m1 | m2;
 }
 
+void sdl_getWheelInfo(int *forward, int *back) {
+	*forward = mouse_wheel_up;
+	*back = mouse_wheel_down;
+
+#ifdef __EMSCRIPTEN__
+	EM_ASM( xsystem35.texthook.disableWheelEvent(100) );
+#endif
+}
+
+void sdl_clearWheelInfo(void) {
+	mouse_wheel_up = mouse_wheel_down = 0;
+}
+
 int sdl_getJoyInfo(void) {
-#ifdef HAVE_SDLJOY
 	sdl_getEvent();
 	return joyinfo;
-#else
-	return 0;
-#endif
 }

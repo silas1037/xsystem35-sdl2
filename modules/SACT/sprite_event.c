@@ -91,7 +91,7 @@ static void cb_focused_swsp(void* s, void* data) {
 	int *update  = (int *)data;
 	boolean oldstate = sp->show;
 	
-	SACT_DEBUG("show up spex %d\n", sp->no);
+	SACT_DEBUG("show up spex %d", sp->no);
 
 	sp->show = TRUE;
 	if (oldstate != sp->show) {
@@ -109,7 +109,7 @@ static void cb_defocused_swsp(void* s, void* data) {
 	int *update  = (int *)data;
 	boolean oldstate = sp->show;
 	
-	SACT_DEBUG("hide spex %d\n", sp->no);
+	SACT_DEBUG("hide spex %d", sp->no);
 	
 	sp->show = FALSE;
 	if (oldstate != sp->show) {
@@ -173,7 +173,7 @@ static int cb_focused(sprite_t *sp) {
 			update++;
 		}
 		sp->focused = TRUE;
-		SACT_DEBUG("get forcused %d, type %d\n", sp->no, sp->type);
+		SACT_DEBUG("get forcused %d, type %d", sp->no, sp->type);
 		if (sp->numsound1) {
 			ssnd_play(sp->numsound1);
 		}
@@ -196,7 +196,7 @@ static int cb_defocused(sprite_t *sp) {
 		sp->curcg = sp->cg1;
 		update++;
 		sp->focused = FALSE;
-		SACT_DEBUG("lost forcused %d\n", sp->no);
+		SACT_DEBUG("lost forcused %d", sp->no);
 	}
 	
 	return update;
@@ -223,16 +223,15 @@ static void cb_waitkey_simple(agsevent_t *e) {
 		}
 		break;
 		
-	case AGSEVENT_BUTTON_RELEASE:
+	case AGSEVENT_MOUSE_WHEEL:
 		// back log view mode に移行
-		if (e->d3 == AGSEVENT_WHEEL_UP ||
-		    e->d3 == AGSEVENT_WHEEL_DN) {
-			// MessageKey 待ちのときのみ
-			if (sact.waittype != KEYWAIT_MESSAGE) break;
-			sblog_start();
+		// MessageKey 待ちのときのみ
+		if (sact.waittype != KEYWAIT_MESSAGE) break;
+		if (sblog_start() == OK)
 			sact.waittype = KEYWAIT_BACKLOG;
-			break;
-		}
+		break;
+
+	case AGSEVENT_BUTTON_RELEASE:
 		if (sact.zhiding) {
 			slist_foreach(sact.sp_zhide, cb_focused_zkey, &update);
 			sact.zhiding = FALSE;
@@ -252,8 +251,8 @@ static void cb_waitkey_simple(agsevent_t *e) {
 		case KEY_PAGEDOWN:
 			// MessageKey 待ちのときのみ
 			if (sact.waittype != KEYWAIT_MESSAGE) break;
-			sblog_start();
-			sact.waittype = KEYWAIT_BACKLOG;
+			if (sblog_start() == OK)
+				sact.waittype = KEYWAIT_BACKLOG;
 			break;
 		default:
 			sact.waitkey = e->d3;
@@ -407,18 +406,17 @@ static void cb_waitkey_backlog(agsevent_t *e) {
 		break;
 		
 	case AGSEVENT_BUTTON_RELEASE:
-		switch(e->d3) {
-		case AGSEVENT_WHEEL_UP:
-			sblog_pagenext();
-			break;
-		case AGSEVENT_WHEEL_DN:
-			sblog_pagepre();
-			break;
-		case AGSEVENT_BUTTON_RIGHT:
+		if (e->d3 == AGSEVENT_BUTTON_RIGHT) {
 			sblog_end();
 			sact.waittype = KEYWAIT_MESSAGE;
-			break;
 		}
+		break;
+
+	case AGSEVENT_MOUSE_WHEEL:
+		if (e->d3 > 0)
+			sblog_pagenext();
+		else
+			sblog_pagepre();
 		break;
 	}
 }

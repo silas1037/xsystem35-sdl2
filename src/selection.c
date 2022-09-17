@@ -53,9 +53,9 @@ static char elm[ELEMENT_MAX][ELEMENT_LENGTH];
 /* 選択したときに返す値 */
 static int elmv[ELEMENT_MAX];
 /* 現在登録中の選択肢の番号 */
-static int regnum = 0;
+static int regnum;
 /* 選択肢の要素の最大長さ */
-static int maxElementLength = 0;
+static int maxElementLength;
 /* 選択肢ウィンド退避 */
 static MyRectangle saveArea;
 /* 選択ウィンドの退避用 */
@@ -69,7 +69,7 @@ static int cb_select_address;
 static int cb_cancel_page;
 static int cb_cancel_address;
 /* 選択肢 window を開いた時のマウスカーソルの動作 */
-static int default_element = 1;
+static int default_element;
 /* 最後に選んだ選択肢の要素番号 */
 static int last_selected_element;
 /* キーボードによる選択操作用 */
@@ -110,17 +110,43 @@ void sel_init() {
 	sel.WinResizeWidth  = FALSE;
 	sel.WinResizeHeight = TRUE;
 
-#if 0
-	sel.WinInfo.x = 464;
-	sel.WinInfo.y = 80;
-	sel.WinInfo.width  = 160;
-	sel.WinInfo.height = 160;
-	sel.WinInfo.save = TRUE;
-	sel.savedImage = NULL;
-#endif
+	for (int i = 0; i < SELWINMAX; i++) {
+		if (sel.wininfo[i].savedimg)
+			ags_delRegion(sel.wininfo[i].savedimg);
+	}
+	memset(sel.wininfo, 0, sizeof(sel.wininfo));
+
+	sel.winno = 1;
+	sel.win = &sel.wininfo[0];
+	sel.wininfo[0].x = 464;
+	sel.wininfo[0].y = 80;
+	sel.wininfo[0].width  = 160;
+	sel.wininfo[0].height = 160;
+	sel.wininfo[0].save = TRUE;
 	
 	/* 選択肢を登録中 */
 	sel.in_setting = FALSE;
+
+	// Private variables
+	memset(elm, 0, sizeof(elm));
+	memset(elmv, 0, sizeof(elmv));
+	regnum = 0;
+	maxElementLength = 0;
+
+	if (saveimg) {
+		ags_delRegion(saveimg);
+		saveimg = NULL;
+	}
+	if (saveimg2) {
+		ags_delRegion(saveimg2);
+		saveimg2 = NULL;
+	}
+	cb_select_page = 0;
+	cb_select_address = 0;
+	cb_cancel_page = 0;
+	cb_cancel_address = 0;
+	default_element = 1;
+	last_selected_element = 0;
 }
 
 /* 登録された選択肢の個数を削減する */
@@ -267,10 +293,10 @@ static void init_selwindow() {
 		drawLineFrame(r.x, r.y, r.w, r.h);
 		break;
 	case WINDOW_FRAME_CG:
-		printf("frameType is CG %d,%d,%d\n",sel.FrameCgNoTop, sel.FrameCgNoMid, sel.FrameCgNoBot);
+		NOTICE("frameType is CG %d,%d,%d",sel.FrameCgNoTop, sel.FrameCgNoMid, sel.FrameCgNoBot);
 		break;
 	default:
-		printf("frameType is Default");
+		NOTICE("frameType is Default");
 		break;
 	}
 	ags_setFont(FONT_GOTHIC, sel.MsgFontSize);
@@ -431,7 +457,7 @@ void sel_select() {
 	}
 	
 	sys_key_releasewait(SYS35KEY_RET, FALSE);
-	while (1) {
+	while (!nact->is_quit) {
 		key = sys_keywait(25, KEYWAIT_CANCELABLE);
 
 		if (!key && prevkey == SYS35KEY_SPC) break;

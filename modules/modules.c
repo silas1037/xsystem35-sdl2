@@ -65,7 +65,7 @@ static void resolve_func(S39AIN_DLLFN *func, const Module *mod) {
 	if (mf)
 		func->entrypoint = mf->entrypoint;
 	else
-		WARNING("Cannot resolve DLL function %s.%s\n", mod->name, func->name);
+		WARNING("Cannot resolve DLL function %s.%s", mod->name, func->name);
 }
 
 int resolve_module(S39AIN_DLLINF *dll) {
@@ -76,9 +76,10 @@ int resolve_module(S39AIN_DLLINF *dll) {
 		if (strcasecmp((*mod)->name, dll->name) == 0) {
 			for (int i = 0; i < dll->function_num; i++)
 				resolve_func(&dll->function[i], *mod);
+			dll->reset = (*mod)->reset;
 			return OK;
 		}
 	}
-	WARNING("Cannot resolve DLL: %s\n", dll->name);
+	WARNING("Cannot resolve DLL: %s", dll->name);
 	return NG;
 }

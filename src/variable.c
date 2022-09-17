@@ -28,7 +28,9 @@
 #include "utfsjis.h"
 #include "variable.h"
 #include "xsystem35.h"
-#include "scenario.h"
+
+#define SYSVARLONG_MAX 128
+#define PAGE_MAX 256
 
 typedef struct {
 	int *pointvar;
@@ -41,18 +43,22 @@ int sysVar[SYSVAR_MAX];
 /* 配列変数の情報 */
 static VariableAttributes attributes[SYSVAR_MAX];
 /* 配列本体 */
-arrayVarBufferStruct arrayVarBuffer[ARRAYVAR_PAGEMAX];
+struct VarPage varPage[PAGE_MAX];
 /* 64bit変数 */
 double longVar[SYSVARLONG_MAX];
 /* 文字列変数 */
 static char **strVar;
 /* 文字列変数の属性(最大,1つあたりの大きさ) */
-int strvar_cnt = STRVAR_MAX;
-int strvar_len = STRVAR_LEN;
+int strvar_cnt;
+int strvar_len;
 
-int preVarPage;      /* 直前にアクセスした変数のページ */
-int preVarIndex;     /* 直前にアクセスした変数のINDEX */
-int preVarNo;        /* 直前にアクセスした変数の番号 */
+const char *v_name(int var) {
+	if (var < nact->ain.varnum)
+		return nact->ain.var[var];
+	static char buf[10];
+	sprintf(buf, "VAR%d", var);
+	return buf;
+}
 
 static char *advance(const char *s, int n) {
 	while (*s && n > 0) {
@@ -62,61 +68,45 @@ static char *advance(const char *s, int n) {
 	return (char *)s;
 }
 
-int *v_ref(int var) {
+int *v_ref_indexed(int var, int index, struct VarRef *ref) {
 	VariableAttributes *attr = &attributes[var];
-	preVarPage = attr->page;
-	preVarNo   = var;
+	int page = attr->page;
 
-	if (attr->page == 0) {
-		// Normal variable access
-		preVarIndex = var;
-		return sysVar + var;
-	}
-
-	// Implicit array access
-	int *index = attr->pointvar;
-	int page   = attr->page;
-	int offset = attr->offset;
-	if (*index + offset >= arrayVarBuffer[page - 1].size) {
-		WARNING("%03d:%05x: ArrayIndexOutOfBounds (%d, %d, %d, %d)\n", sl_getPage(), sl_getIndex(), var, *index, page, offset);
-		return NULL;
-	}
-	preVarIndex = offset + *index;
-	return arrayVarBuffer[page - 1].value + offset + *index;
-}
-
-int *v_ref_indexed(int var, int index) {
-	VariableAttributes *attr = &attributes[var];
-	preVarPage = attr->page;
-	preVarNo   = var;
-
-	if (attr->page == 0) {
+	if (page == 0) {
+		if (index < 0)
+			index = 0;
 		// If VAR_n is not an array variable, VAR_n[i] points to VAR_(n+i).
-		if ((var + index) >= SYSVAR_MAX) {
-			WARNING("%03d:%05x: ArrayIndexOutOfBounds (%d, %d)\n", sl_getPage(), sl_getIndex(), var, index);
-			return NULL;
+		index += var;
+		if (ref) {
+			ref->var = var;
+			ref->page = page;
+			ref->index = index;
 		}
-		preVarIndex = var + index;
-		return sysVar + var + index;
+		if (index >= SYSVAR_MAX)
+			return NULL;
+		return sysVar + index;
 	}
 
-	// Indexed array access
-	int page   = attr->page;
-	int offset = attr->offset;
-	if (offset + index >= arrayVarBuffer[page - 1].size) {
-		WARNING("%03d:%05x: ArrayIndexOutOfBounds (%d, %d, %d, %d)\n", sl_getPage(), sl_getIndex(), var, index, page, offset);
-		return NULL;
+	if (index < 0)  // Implicit array access
+		index = *attr->pointvar;
+
+	index += attr->offset;
+	if (ref) {
+		ref->var = var;
+		ref->page = page;
+		ref->index = index;
 	}
-	preVarIndex = offset + index;
-	return arrayVarBuffer[page - 1].value + offset + index;
+	if (index >= varPage[page].size)
+		return NULL;
+	return varPage[page].value + index;
 }
 
-/* 配列バッファの確保 DC ,page = 1~ */
-extern boolean v_allocateArrayBuffer(int page, int size, boolean saveflag) {
-	if (page <= 0 || page > 256)   { return false; }
-	if (size <= 0 || size > 65536) { return false; }
+// DC command
+bool v_allocatePage(int page, int size, bool saveflag) {
+	if (page <= 0 || page >= PAGE_MAX) { return false; }
+	if (size <= 0 || size > 65536)     { return false; }
 	
-	void *buf = arrayVarBuffer[page - 1].value;
+	void *buf = varPage[page].value;
 	if (buf != NULL)
 		buf = realloc(buf, size * sizeof(int));
 	else
@@ -124,18 +114,18 @@ extern boolean v_allocateArrayBuffer(int page, int size, boolean saveflag) {
 	if (!buf)
 		NOMEMERR();
 
-	arrayVarBuffer[page - 1].value    = buf;
-	arrayVarBuffer[page - 1].size     = size;
-	arrayVarBuffer[page - 1].saveflag = saveflag;
+	varPage[page].value    = buf;
+	varPage[page].size     = size;
+	varPage[page].saveflag = saveflag;
 	
 	return true;
 }
 
-/*　配列変数の割り当て DS */
-extern boolean v_defineArrayVar(int datavar, int *pointvar, int offset, int page) {
-	if (datavar < 0 || datavar >  SYSVAR_MAX - 1)                { return false; }
-	if (page    < 0 || page    >  ARRAYVAR_PAGEMAX - 1)          { return false; }
-	if (offset  < 0 || offset  >= arrayVarBuffer[page - 1].size) { return false; }
+// DS command
+bool v_bindArray(int datavar, int *pointvar, int offset, int page) {
+	if (datavar <  0 || datavar >= SYSVAR_MAX)         { return false; }
+	if (page    <= 0 || page    >= PAGE_MAX)           { return false; }
+	if (offset  <  0 || offset  >= varPage[page].size) { return false; }
 	
 	attributes[datavar].pointvar = pointvar;
 	attributes[datavar].page     = page;
@@ -143,19 +133,28 @@ extern boolean v_defineArrayVar(int datavar, int *pointvar, int offset, int page
 	return true;
 }
 
-/* 配列変数の割り当て解除 DR */
-extern boolean v_releaseArrayVar(int datavar) {
+// DR command
+bool v_unbindArray(int datavar) {
 	attributes[datavar].page = 0;
 	return true;
 }
 
-/* 指定ページは使用中 page = 1~ */
-extern boolean v_getArrayBufferStatus(int page) {
-	return (arrayVarBuffer[page - 1].value != NULL) ? true : false;
+// DI command
+void v_getPageStatus(int page, int *in_use, int *size) {
+	if (page == 0) {
+		*in_use = false;
+		*size = 1;  // why...
+	} else if (page >= PAGE_MAX) {
+		*in_use = false;
+		*size = 0;
+	} else {
+		*in_use = varPage[page].value != NULL;
+		*size = varPage[page].size & 0xffff;
+	}
 }
 
 /* 文字列変数の再初期化 */
-extern void svar_init(int max_index, int len) {
+void svar_init(int max_index, int len) {
 	for (int i = max_index + 1; i < strvar_cnt; i++) {
 		if (strVar[i])
 			free(strVar[i]);
@@ -170,23 +169,42 @@ extern void svar_init(int max_index, int len) {
 	strvar_len = len;
 }
 
-extern int svar_maxindex(void) {
+int svar_maxindex(void) {
 	return strvar_cnt - 1;
 }
 
 /* 変数の初期化 */
-extern boolean v_initVars() {
-	strVar = calloc(STRVAR_MAX, sizeof(char *));
-	if (strVar == NULL) {
-		NOMEMERR();
+void v_init(void) {
+	varPage[0].value = sysVar;
+	varPage[0].size = SYSVAR_MAX;
+	varPage[0].saveflag = true;
+	svar_init(STRVAR_MAX - 1, STRVAR_LEN);
+}
+
+void v_reset(void) {
+	memset(sysVar, 0, sizeof(sysVar));
+	memset(attributes, 0, sizeof(attributes));
+	memset(longVar, 0, sizeof(longVar));
+
+	for (int i = 1; i < PAGE_MAX; i++) {
+		if (varPage[i].value)
+			free(varPage[i].value);
 	}
-	return true;
+	memset(varPage, 0, sizeof(varPage));
+
+	for (int i = 0; i < strvar_cnt; i++) {
+		if (strVar[i]) {
+			free(strVar[i]);
+			strVar[i] = NULL;
+		}
+	}
+	v_init();
 }
 
 /* 文字変数への代入 */
 void svar_set(int no, const char *str) {
 	if ((unsigned)no >= strvar_cnt) {
-		WARNING("string index out of range: %d\n", no);
+		WARNING("string index out of range: %d", no);
 		return;
 	}
 	if (strVar[no])
@@ -196,7 +214,7 @@ void svar_set(int no, const char *str) {
 
 void svar_copy(int dstno, int dstpos, int srcno, int srcpos, int len) {
 	if ((unsigned)dstno >= strvar_cnt) {
-		WARNING("string index out of range: %d\n", dstno);
+		WARNING("string index out of range: %d", dstno);
 		return;
 	}
 	if (!strVar[dstno])
@@ -224,7 +242,7 @@ void svar_copy(int dstno, int dstpos, int srcno, int srcpos, int len) {
 /* 文字変数への接続 */
 void svar_append(int no, const char *str) {
 	if ((unsigned)no >= strvar_cnt) {
-		WARNING("string index out of range: %d\n", no);
+		WARNING("string index out of range: %d", no);
 		return;
 	}
 	if (!strVar[no]) {
@@ -257,7 +275,7 @@ int svar_width(int no) {
 /* 文字変数そのもの */
 const char *svar_get(int no) {
 	if ((unsigned)no >= strvar_cnt) {
-		WARNING("string index out of range: %d\n", no);
+		WARNING("string index out of range: %d", no);
 		return "";
 	}
 	return strVar[no] ? strVar[no] : "";
@@ -265,7 +283,7 @@ const char *svar_get(int no) {
 
 int svar_find(int no, int start, const char *str) {
 	if ((unsigned)no >= strvar_cnt) {
-		WARNING("string index out of range: %d\n", no);
+		WARNING("string index out of range: %d", no);
 		return -1;
 	}
 	if (!*str)
@@ -276,7 +294,7 @@ int svar_find(int no, int start, const char *str) {
 	const char *found = strstr(p, str);
 	if (!found)
 		return -1;
-	int n = start;
+	int n = 0;
 	while (p < found) {
 		p = advance_char(p, nact->encoding);
 		n++;
@@ -286,7 +304,7 @@ int svar_find(int no, int start, const char *str) {
 
 void svar_fromVars(int no, const int *vars) {
 	if ((unsigned)no >= strvar_cnt) {
-		WARNING("string index out of range: %d\n", no);
+		WARNING("string index out of range: %d", no);
 		return;
 	}
 	int len = 0;
@@ -310,7 +328,7 @@ void svar_fromVars(int no, const int *vars) {
 
 int svar_toVars(int no, int *vars) {
 	if ((unsigned)no >= strvar_cnt) {
-		WARNING("string index out of range: %d\n", no);
+		WARNING("string index out of range: %d", no);
 		return 0;
 	}
 	if (!strVar[no]) {
@@ -344,7 +362,7 @@ void svar_replaceAll(int no, int pattern, int replacement) {
 	const char *repl = svar_get(replacement);
 
 	if ((unsigned)no >= strvar_cnt) {
-		WARNING("string index out of range: %d\n", no);
+		WARNING("string index out of range: %d", no);
 		return;
 	}
 	if (!strVar[no])

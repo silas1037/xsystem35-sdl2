@@ -44,7 +44,7 @@ int s39ain_init(const char *path_to_ain, S39AIN *ain) {
 	int i;
 	
 	if (NULL == (fp =  fopen(path_to_ain, "rb"))) {
-		WARNING("fail to open %s\n", path_to_ain);
+		WARNING("fail to open %s", path_to_ain);
 		return NG;
 	}
 	
@@ -58,7 +58,7 @@ int s39ain_init(const char *path_to_ain, S39AIN *ain) {
 	p = buf;
 	/* first check */
 	if (0 != strncmp(p, "AIN", 3)) {
-		WARNING("%s is not ain file\n", path_to_ain);
+		WARNING("%s is not ain file", path_to_ain);
 		free(buf);
 		return NG;
 	}
@@ -75,13 +75,13 @@ int s39ain_init(const char *path_to_ain, S39AIN *ain) {
 	
 	p = buf +8;
 	if (0 != strncmp(p, "HEL0", 4)) {
-		WARNING("%s is illigal ain file\n", path_to_ain);
+		WARNING("%s is illigal ain file", path_to_ain);
 		free(buf);
 		return NG;
 	}
 	p += 8;
 	ain->dllnum = LittleEndian_getDW(p, 0);
-	ain->dll = malloc(sizeof(S39AIN_DLLINF) * ain->dllnum);
+	ain->dll = calloc(ain->dllnum, sizeof(S39AIN_DLLINF));
 	
 	p += 4;
 	for (i = 0; i < ain->dllnum; i++) {
@@ -159,5 +159,13 @@ int s39ain_init(const char *path_to_ain, S39AIN *ain) {
 	for (i = 0; i < ain->dllnum; i++)
 		resolve_module(&ain->dll[i]);
 
+	return OK;
+}
+
+int s39ain_reset(S39AIN *ain) {
+	for (int i = 0; i < ain->dllnum; i++) {
+		if (ain->dll[i].reset)
+			ain->dll[i].reset();
+	}
 	return OK;
 }

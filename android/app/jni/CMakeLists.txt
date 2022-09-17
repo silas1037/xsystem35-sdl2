@@ -2,28 +2,21 @@ cmake_minimum_required(VERSION 3.13)
 
 project(GAME)
 
-# armeabi-v7a requires cpufeatures library
-# include(AndroidNdkModules)
-# android_ndk_import_module_cpufeatures()
-
 include(FetchContent)
 FetchContent_Declare(
   SDL
-  URL https://libsdl.org/release/SDL2-2.0.16.tar.gz
-  URL_HASH SHA1=57825428174adb2ac947e4014080c262505aa972
-  PATCH_COMMAND patch -p1 -i ${CMAKE_CURRENT_LIST_DIR}/SDL.patch
+  URL https://libsdl.org/release/SDL2-2.0.20.tar.gz
+  URL_HASH SHA1=18ce006cbf07502f48abfedc088c14404091f3d3
 )
-# TODO: Use SDL2_ttf 2.0.16 once released
 FetchContent_Declare(
   SDL_ttf
-  GIT_REPOSITORY https://github.com/libsdl-org/SDL_ttf.git
-  GIT_TAG 11722a2bb4335d489d724c08cfdbb45f97d07aa7
+  URL https://github.com/libsdl-org/SDL_ttf/archive/refs/tags/release-2.0.18.tar.gz
+  URL_HASH SHA1=6fc5130757b447d46c3da6abd58687e8576de8b8
 )
-# TODO: Use SDL2_mixer 2.0.5 once released
 FetchContent_Declare(
   SDL_mixer
-  GIT_REPOSITORY https://github.com/libsdl-org/SDL_mixer.git
-  GIT_TAG 20433729fb318f7b6f773a42ffa410114cb067f2
+  URL https://github.com/libsdl-org/SDL_mixer/archive/refs/tags/release-2.6.0.tar.gz
+  URL_HASH SHA1=a2aef03d74ac3dd9cd0004cff1834602a5dafa66
 )
 
 # Compilation of SDL and companion libraries
@@ -40,9 +33,12 @@ endif()
 FetchContent_GetProperties(SDL_mixer)
 if(NOT sdl_mixer_POPULATED)
   FetchContent_Populate(SDL_mixer)
-  SET(SUPPORT_OGG ON CACHE BOOL "Enable OGG support in SDL_mixer" FORCE)
+  SET(SDL2MIXER_OPUS OFF CACHE BOOL "Enable Opus music" FORCE)
+  SET(SDL2MIXER_FLAC OFF CACHE BOOL "Enable FLAC music" FORCE)
+  SET(SDL2MIXER_MOD  OFF CACHE BOOL "Support loading MOD music" FORCE)
+  SET(SDL2MIXER_MIDI OFF CACHE BOOL "Enable MIDI music" FORCE)
+  SET(SDL2MIXER_SAMPLES OFF CACHE BOOL "Build the SDL2_mixer sample program(s)" FORCE)
   add_subdirectory(${sdl_mixer_SOURCE_DIR} ${sdl_mixer_BINARY_DIR})
-  target_compile_definitions(SDL2_mixer PRIVATE MUSIC_WAV)
 endif()
 
 # The main CMakeLists.txt of xsystem35

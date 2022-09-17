@@ -9,15 +9,15 @@ else {
 apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion 28
+    compileSdkVersion 31
     defaultConfig {
         if (buildAsApplication) {
             applicationId "io.github.kichikuou.xsystem35"
         }
         minSdkVersion 19
-        targetSdkVersion 28
-        versionCode 6
-        versionName "2.2.0"
+        targetSdkVersion 31
+        versionCode 10
+        versionName "2.5.1"
         externalNativeBuild {
             cmake {
                 arguments "-DANDROID_APP_PLATFORM=android-16", "-DANDROID_STL=c++_static"

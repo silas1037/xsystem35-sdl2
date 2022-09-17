@@ -27,6 +27,18 @@ static int window_width;
 static int window_height;
 static int map_width;
 
+static void oujimisc_reset(void) {
+	for (int i = 0; i < NUM_MAPS; i++) {
+		free(mapdata[i]);
+		mapdata[i] = NULL;
+	}
+	setChipParam_index = 0;
+	memset(chip_params, 0, sizeof(chip_params));
+	window_width = 0;
+	window_height = 0;
+	map_width = 0;
+}
+
 static void MakeMapSetParam() {
 	int p1 = getCaliValue();
 	int p2 = getCaliValue();
@@ -34,7 +46,7 @@ static void MakeMapSetParam() {
 	int p4 = getCaliValue();
 
 	if (p1 != NUM_LAYERS) {
-		WARNING("Unexpected number of layers: %d\n", p1);
+		WARNING("Unexpected number of layers: %d", p1);
 		return;
 	}
 	setChipParam_index = 0;
@@ -42,7 +54,7 @@ static void MakeMapSetParam() {
 	window_height = p3;
 	map_width = p4;
 
-	DEBUG_COMMAND("oujimisc.MakeMapSetParam %d,%d,%d,%d:\n", p1,p2,p3,p4);
+	DEBUG_COMMAND("oujimisc.MakeMapSetParam %d,%d,%d,%d:", p1,p2,p3,p4);
 }
 
 static void MakeMapSetChipParam() {
@@ -53,7 +65,7 @@ static void MakeMapSetChipParam() {
 	int p5 = getCaliValue();
 
 	if (setChipParam_index >= NUM_LAYERS) {
-		WARNING("unexpected MakeMapSeChipParam call\n");
+		WARNING("unexpected MakeMapSeChipParam call");
 		return;
 	}
 	MyRectangle *r = &chip_params[setChipParam_index++];
@@ -62,7 +74,7 @@ static void MakeMapSetChipParam() {
 	r->w = p3;
 	r->h = p4;
 
-	DEBUG_COMMAND("oujimisc.MakeMapSeChipParam %d,%d,%d,%d,%d:\n", p1,p2,p3,p4,p5);
+	DEBUG_COMMAND("oujimisc.MakeMapSeChipParam %d,%d,%d,%d,%d:", p1,p2,p3,p4,p5);
 }
 
 static void MakeMapDraw() {
@@ -94,13 +106,13 @@ static void MakeMapDraw() {
 		}
 	}
 
-	DEBUG_COMMAND("oujimisc.MakeMapDraw %d,%d,%d,%d,%d,%p,%p,%p:\n", p1,dstX,dstY,posX,posY,a1,a2,a3);
+	DEBUG_COMMAND("oujimisc.MakeMapDraw %d,%d,%d,%d,%d,%p,%p,%p:", p1,dstX,dstY,posX,posY,a1,a2,a3);
 }
 
 static void MakeMapInit() {
 	int p1 = getCaliValue(); /* ISys3x */
 	
-	DEBUG_COMMAND_YET("oujimisc.MakeMapInit %d:\n", p1);
+	DEBUG_COMMAND_YET("oujimisc.MakeMapInit %d:", p1);
 }	
 
 static void DrawNumber() {
@@ -125,7 +137,7 @@ static void DrawNumber() {
 		dstX += width;
 	}
 
-	DEBUG_COMMAND("oujimisc.DrawNumber %d,%d,%d,%d,%d,%d,%d,%d:\n", p1,srcX,srcY,width,height,dstX,dstY,num);
+	DEBUG_COMMAND("oujimisc.DrawNumber %d,%d,%d,%d,%d,%d,%d,%d:", p1,srcX,srcY,width,height,dstX,dstY,num);
 }
 
 static void TempMapCreateShadow() {
@@ -141,34 +153,34 @@ static void TempMapCreateShadow() {
 		ald_freedata(dfile);
 	}
 
-	DEBUG_COMMAND("oujimisc.TempMapCreateShadow:\n");
+	DEBUG_COMMAND("oujimisc.TempMapCreateShadow:");
 }
 
 static void TempMapInit() {
 	int p1 = getCaliValue(); /* ISys3x */
 	int p2 = getCaliValue();
 	
-	DEBUG_COMMAND_YET("oujimisc.TempMapInit %d,%d:\n", p1,p2);
+	DEBUG_COMMAND_YET("oujimisc.TempMapInit %d,%d:", p1,p2);
 }
 
 static void TempMapLoadToShadow() {
 	int map = getCaliValue();
-	int *a1 = getCaliVariable();
-	int a1page = preVarPage;
-	int *a2 = getCaliVariable();
-	int a2page = preVarPage;
-	int *a3 = getCaliVariable();
-	int a3page = preVarPage;
+	struct VarRef r1, r2, r3;
+	if (!getCaliArray(&r1) || !getCaliArray(&r2) || !getCaliArray(&r3))
+		return;
 	int size = getCaliValue();
 
 	if (!mapdata[map]) {
-		WARNING("No map %d\n", map);
+		WARNING("No map %d", map);
 		return;
 	}
-	if (a1page == 0 || a2page == 0 || a3page == 0) {
-		WARNING("non-array destination variable\n");
+	if (r1.page == 0 || r2.page == 0 || r3.page == 0) {
+		WARNING("non-array destination variable");
 		return;
 	}
+	int *a1 = v_resolveRef(&r1);
+	int *a2 = v_resolveRef(&r2);
+	int *a3 = v_resolveRef(&r3);
 	WORD *p = mapdata[map];
 	for (int i = 0; i < size; i++)
 		*a1++ = SDL_SwapLE16(*p++);
@@ -177,27 +189,27 @@ static void TempMapLoadToShadow() {
 	for (int i = 0; i < size; i++)
 		*a3++ = SDL_SwapLE16(*p++);
 
-	DEBUG_COMMAND("oujimisc.TempMapLoadToShadow %d,%p,%p,%p,%d:\n", map,a1,a2,a3,size);
+	DEBUG_COMMAND("oujimisc.TempMapLoadToShadow %d,%p,%p,%p,%d:", map,a1,a2,a3,size);
 }
 
 static void TempMapSaveToShadow() {
 	int map = getCaliValue();
-	int *a1 = getCaliVariable();
-	int a1page = preVarPage;
-	int *a2 = getCaliVariable();
-	int a2page = preVarPage;
-	int *a3 = getCaliVariable();
-	int a3page = preVarPage;
+	struct VarRef r1, r2, r3;
+	if (!getCaliArray(&r1) || !getCaliArray(&r2) || !getCaliArray(&r3))
+		return;
 	int size = getCaliValue();
 
 	if (!mapdata[map]) {
-		WARNING("No map %d\n", map);
+		WARNING("No map %d", map);
 		return;
 	}
-	if (a1page == 0 || a2page == 0 || a3page == 0) {
-		WARNING("non-array source variable\n");
+	if (r1.page == 0 || r2.page == 0 || r3.page == 0) {
+		WARNING("non-array source variable");
 		return;
 	}
+	int *a1 = v_resolveRef(&r1);
+	int *a2 = v_resolveRef(&r2);
+	int *a3 = v_resolveRef(&r3);
 	WORD *p = mapdata[map];
 	for (int i = 0; i < size; i++)
 		*p++ = SDL_SwapLE16(*a1++);
@@ -206,7 +218,7 @@ static void TempMapSaveToShadow() {
 	for (int i = 0; i < size; i++)
 		*p++ = SDL_SwapLE16(*a3++);
 
-	DEBUG_COMMAND("oujimisc.TempMapSaveToShadow %d,%p,%p,%p,%d:\n", map,a1,a2,a3,size);
+	DEBUG_COMMAND("oujimisc.TempMapSaveToShadow %d,%p,%p,%p,%d:", map,a1,a2,a3,size);
 }
 
 static void TempMapFileSave() {
@@ -216,7 +228,7 @@ static void TempMapFileSave() {
 	sprintf(fname, "王子_M%d.asd", p1);
 	FILE *fp = fc_open(fname, 'w');
 	if (!fp) {
-		WARNING("Cannot open %s\n", fname);
+		WARNING("Cannot open %s", fname);
 		return;
 	}
 
@@ -227,7 +239,7 @@ static void TempMapFileSave() {
 		void *compressed = malloc(size);
 		int r = compress2(compressed, &size, mapdata[i], MAPDATASIZE, Z_BEST_COMPRESSION);
 		if (r != Z_OK) {
-			WARNING("compress2() failed: %d\n", r);
+			WARNING("compress2() failed: %d", r);
 			free(compressed);
 			continue;
 		}
@@ -238,7 +250,7 @@ static void TempMapFileSave() {
 	}
 	fclose(fp);
 
-	DEBUG_COMMAND("oujimisc.TempMapFileSave %d:\n", p1);
+	DEBUG_COMMAND("oujimisc.TempMapFileSave %d:", p1);
 }
 
 static void TempMapFileLoad() {
@@ -248,39 +260,39 @@ static void TempMapFileLoad() {
 	sprintf(fname, "王子_M%d.asd", p1);
 	FILE *fp = fc_open(fname, 'r');
 	if (!fp) {
-		WARNING("Cannot open %s\n", fname);
+		WARNING("Cannot open %s", fname);
 		return;
 	}
 
 	for (int i = 0; i < NUM_MAPS; i++) {
 		RecordHeader hdr;
 		if (fread(&hdr, sizeof(hdr), 1, fp) != 1) {
-			WARNING("fread error\n");
+			WARNING("fread error");
 			break;
 		}
 		if (hdr.map != i) {
-			WARNING("unexpected map no. %d != %d\n", hdr.map, i);
+			WARNING("unexpected map no. %d != %d", hdr.map, i);
 			break;
 		}
 		if (!mapdata[i]) {
-			WARNING("map %d is not allocated\n", i);
+			WARNING("map %d is not allocated", i);
 			break;
 		}
 		void *compressed = malloc(hdr.size);
 		if (fread(compressed, hdr.size, 1, fp) != 1) {
-			WARNING("fread error\n");
+			WARNING("fread error");
 			free(compressed);
 			break;
 		}
 		unsigned long raw_size = MAPDATASIZE;
 		int r = uncompress(mapdata[i], &raw_size, compressed, hdr.size);
 		if (r != Z_OK)
-			WARNING("uncompress() failed: %d\n", r);
+			WARNING("uncompress() failed: %d", r);
 		free(compressed);
 	}
 	fclose(fp);
 
-	DEBUG_COMMAND("oujimisc.TempMapFileLoad %d:\n", p1);
+	DEBUG_COMMAND("oujimisc.TempMapFileLoad %d:", p1);
 }
 
 static void CalcMoveDiffer() {
@@ -310,7 +322,7 @@ static void CalcMoveDiffer() {
 
 	*pt = t >= duration ? 1 : 0;
 
-	DEBUG_COMMAND("oujimisc.CalcMoveDiffer %p,%p,%d,%d,%d,%d,%p,%d:\n", dx,dy,moveL,moveU,moveR,moveD,pt,duration);
+	DEBUG_COMMAND("oujimisc.CalcMoveDiffer %p,%p,%d,%d,%d,%d,%p,%d:", dx,dy,moveL,moveU,moveR,moveD,pt,duration);
 }
 
 static const ModuleFunc functions[] = {
@@ -328,4 +340,4 @@ static const ModuleFunc functions[] = {
 	{"TempMapSaveToShadow", TempMapSaveToShadow},
 };
 
-const Module module_oujimisc = {"oujimisc", functions, sizeof(functions) / sizeof(ModuleFunc)};
+const Module module_oujimisc = {"oujimisc", functions, sizeof(functions) / sizeof(ModuleFunc), oujimisc_reset};

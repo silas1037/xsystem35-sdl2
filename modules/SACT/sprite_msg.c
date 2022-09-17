@@ -194,7 +194,7 @@ void smsg_add(const char *msg) {
 	
 	len = MSGBUFMAX - (int)strlen(sact.msgbuf);
 	if (len < 0) {
-		WARNING("buf shortage (%d)\n", len);
+		WARNING("buf shortage (%d)", len);
 		return;
 	}
 	
@@ -395,7 +395,10 @@ int smsg_keywait(int wNum1, int wNum2, int msglen) {
 	struct markinfo minfo[6];
 	int i = 0, j, maxstep;
 	
-	if (sact.waitskiplv > 0) return 0;
+	if (sact.waitskiplv > 0) {
+		sys_getInputInfo();
+		return 0;
+	}
 	
 	// アニメパターンの初期化
 	maxstep = setupmark(wNum1, wNum2, minfo);
@@ -458,7 +461,7 @@ int smsg_update(sprite_t *sp) {
 	
 	gre_BlendUseAMap(sf0, dx, dy, sf0, dx, dy, sp->u.msg.canvas, sx, sy, w, h, sp->u.msg.canvas, sx, sy, sp->blendrate);
 	
-	SACT_DEBUG("do update no=%d, sx=%d, sy=%d, w=%d, h=%d, dx=%d, dy=%d\n",
+	SACT_DEBUG("do update no=%d, sx=%d, sy=%d, w=%d, h=%d, dx=%d, dy=%d",
 		sp->no, sx, sy, w, h, dx, dy);
 	
 	return OK;

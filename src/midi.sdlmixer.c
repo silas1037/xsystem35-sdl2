@@ -23,6 +23,7 @@
 #include <SDL_mixer.h>
 
 #include "portab.h"
+#include "system.h"
 #include "midi.h"
 
 // MIX_INIT_FLUIDSYNTH was renamed to MIX_INIT_MID in SDL_mixer 2.0.2
@@ -31,7 +32,8 @@
 #endif
 
 static int midi_initilize(char *pname, int subdev);
-static int midi_exit();
+static int midi_exit(void);
+static int midi_reset(void);
 static int midi_start(int no, int loop, char *data, int datalen);
 static int midi_stop();
 static int midi_pause(void);
@@ -48,6 +50,7 @@ static boolean midi_fading();
 mididevice_t midi = {
 	midi_initilize,
 	midi_exit,
+	midi_reset,
 	midi_start,
 	midi_stop,
 	midi_pause,
@@ -71,8 +74,13 @@ static int midi_initilize(char *pname, int subdev) {
 	return OK;
 }
 
-static int midi_exit() {
+static int midi_exit(void) {
 	Mix_Quit();
+	return OK;
+}
+
+static int midi_reset(void) {
+	midi_stop();
 	return OK;
 }
 
@@ -156,7 +164,7 @@ static int midi_fadestart(int time, int volume, int stop) {
 		fade_tick = SDL_GetTicks() + time;
 		return OK;
 	}
-	printf("midi_fadestart(%d, %d, %d) unsupported\n", time, volume, stop);
+	WARNING("(time=%d, volume=%d, stop=%d) unsupported", time, volume, stop);
 	return NG;
 }
 

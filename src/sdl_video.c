@@ -36,17 +36,19 @@
 #include "xsystem35.h"
 #include "image.h"
 
-static void window_init(void);
+static void window_init(const char *render_driver);
 static void makeDIB(int width, int height, int depth);
 
 struct sdl_private_data *sdl_videodev;
 static int joy_device_index = -1;
 static boolean integer_scaling = FALSE;
 
-#ifdef HAVE_SDLJOY
 static SDL_Joystick *js;
 
-static boolean joy_open_index(int index) {
+boolean sdl_joy_open(int index) {
+	if (js)
+		return FALSE;
+
 	js = SDL_JoystickOpen(index);
 	if (!js)
 		return FALSE;
@@ -55,29 +57,26 @@ static boolean joy_open_index(int index) {
 	int axes = SDL_JoystickNumAxes(js);
 	int buttons = SDL_JoystickNumButtons(js);
 	SDL_JoystickEventState(SDL_ENABLE);
-	printf("SDL joystick '%s' %d axes %d buttons\n", name, axes, buttons);
+	NOTICE("SDL joystick '%s' %d axes %d buttons", name, axes, buttons);
 	return TRUE;
 }
 
-static int joy_open(void) {
-	if (joy_device_index >= 0) {
-		return joy_open_index(joy_device_index) ? 1 : -1;
-	} else {
-		for (int i = 0; i < SDL_NumJoysticks(); i++) {
-			if (joy_open_index(i))
-				return 1;
-		}
+static boolean joy_open(void) {
+	if (joy_device_index >= 0)
+		return sdl_joy_open(joy_device_index);
+
+	for (int i = 0; i < SDL_NumJoysticks(); i++) {
+		if (sdl_joy_open(i))
+			return TRUE;
 	}
-	return -1;
+	return FALSE;
 }
-#endif // HAVE_SDLJOY
 
 /* SDL の初期化 */
-int sdl_Initilize(void) {
+int sdl_Initialize(const char *render_driver) {
 	sdl_videodev = calloc(1, sizeof(struct sdl_private_data));
 
-	/* make topleve window */
-	window_init();
+	window_init(render_driver);
 	
 	/* offscreen Pixmap */
 	makeDIB(SYS35_DEFAULT_WIDTH, SYS35_DEFAULT_HEIGHT, SYS35_DEFAULT_DEPTH);
@@ -85,7 +84,7 @@ int sdl_Initilize(void) {
 	/* init cursor */
 	sdl_cursor_init();
 	
-	sdl_setWindowSize(0, 0, SYS35_DEFAULT_WIDTH, SYS35_DEFAULT_HEIGHT);
+	sdl_setWindowSize(SYS35_DEFAULT_WIDTH, SYS35_DEFAULT_HEIGHT);
 
 	sdl_shadow_init();
 	
@@ -94,9 +93,7 @@ int sdl_Initilize(void) {
 	emscripten_set_visibilitychange_callback(NULL, 0, NULL);
 #endif
 
-#ifdef HAVE_SDLJOY
 	joy_open();
-#endif
 	return 0;
 }
 
@@ -110,13 +107,11 @@ void sdl_Remove(void) {
 
 		SDL_DestroyRenderer(sdl_renderer);
 		
-#ifdef HAVE_SDLJOY
 		SDL_JoystickClose(js);
-#endif
 		
 		SDL_Quit();
 		
-		NOTICE("Done!\n");
+		NOTICE("Done!");
 	}
 }
 
@@ -131,14 +126,12 @@ void sdl_setWindowTitle(char *name) {
 }
 #endif
 
-/* Visual に応じて Window を生成する */
-static void window_init(void) {
-	
-	SDL_Init(SDL_INIT_VIDEO
-#ifdef HAVE_SDLJOY
-		 |SDL_INIT_JOYSTICK
-#endif
-		);
+static void window_init(const char *render_driver) {
+	if (render_driver)
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, render_driver);
+	SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
+
+	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
 	
 #ifdef __EMSCRIPTEN__
 	// Stop SDL from calling emscripten_sleep() in functions that are called
@@ -159,6 +152,7 @@ static void window_init(void) {
 								  SYS35_DEFAULT_WIDTH, SYS35_DEFAULT_HEIGHT,
 								  flags);
 	sdl_renderer = SDL_CreateRenderer(sdl_window, -1, 0);
+	SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 	SDL_RenderSetIntegerScale(sdl_renderer, integer_scaling);
 }
 
@@ -178,16 +172,6 @@ static void makeDIB(int width, int height, int depth) {
 		memset(sdl_dib->format->palette->colors, 0, sizeof(SDL_Color)*256);
 	}
 
-#if 0
-	printf("DIB depth %d\n", sdl_dib->format->BitsPerPixel);
-	printf("  R %04x G %04x B %04x A %04x\n",
-	       sdl_dib->format->Rmask, sdl_dib->format->Gmask,
-	       sdl_dib->format->Bmask, sdl_dib->format->Amask);
-#endif
-	if (depth > 8) {
-		sdl_white = (sdl_dib->format->Rmask | sdl_dib->format->Gmask | sdl_dib->format->Bmask);
-	}
-	
 	if (sdl_dibinfo) {
 		free(sdl_dibinfo);
 	}
@@ -246,10 +230,11 @@ boolean sdl_isFullscreen(void) {
 	return sdl_fs_on;
 }
 
-void sdl_setWindowSize(int x, int y, int w, int h) {
-	view_x = x;
-	view_y = y;
+void sdl_raiseWindow(void) {
+	SDL_RaiseWindow(sdl_window);
+}
 
+void sdl_setWindowSize(int w, int h) {
 	if (w == view_w && h == view_h) return;
 
 	view_w = w;
@@ -263,7 +248,7 @@ void sdl_setWindowSize(int x, int y, int w, int h) {
 		SDL_FreeSurface(sdl_display);
 	if (sdl_texture)
 		SDL_DestroyTexture(sdl_texture);
-	sdl_display = SDL_CreateRGBSurface(0, w, h, 32, 0, 0, 0, 0);
+	sdl_display = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGB888);
 	sdl_texture = SDL_CreateTexture(sdl_renderer, sdl_display->format->format,
 									SDL_TEXTUREACCESS_STATIC, w, h);
 

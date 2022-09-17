@@ -27,26 +27,11 @@
 #include "portab.h"
 #include "cdrom.h"
 
-struct _cdobj {
-	int st; // オブジェクトの遷移状態
-
-	int track; // 演奏トラック
-	int loop;  // くりかえし数 (0の場合は無限)
-	int cnt;   // 実際に繰り返した数
-	
-	boolean in_play; // 演奏中？
-        
-	cd_time time; // 演奏位置
-	
-	cdromdevice_t *dev;
-};
-typedef struct _cdobj cdobj_t;
-
-extern int muscd_init();
-extern int muscd_exit();
-extern int muscd_start(int trk, int loop);
-extern int muscd_stop();
-extern int muscd_getpos(cd_time *tm);
-extern int muscd_cb();
+int muscd_init(void);
+int muscd_exit(void);
+int muscd_reset(void);
+int muscd_start(int trk, int loop);
+int muscd_stop(void);
+int muscd_getpos(cd_time *tm);
 
 #endif /* __MUSIC_CDROM_H__ */

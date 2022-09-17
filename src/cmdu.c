@@ -41,7 +41,7 @@ void commandUC() { /* 王道勇者 */
 	default:
 		break;
 	}
-	DEBUG_COMMAND("UC %d,%d:\n",mode,num);
+	DEBUG_COMMAND("UC %d,%d:",mode,num);
 }
 
 void commandUD() {
@@ -53,35 +53,37 @@ void commandUD() {
 	case 1:
 		sl_retFar2(); break;
 	default:
-		WARNING("UnKnown UD command %d\n", mode);
+		WARNING("UnKnown UD command %d", mode);
 	}
 	
-	DEBUG_COMMAND("UD %d:\n",mode);
+	DEBUG_COMMAND("UD %d:",mode);
 }
 
 void commandUR() {
 	/* 最後に積まれたスタックの属性をリード */
 	int *var = getCaliVariable();
 	
-	DEBUG_COMMAND_YET("UR %p:\n",var);
+	DEBUG_COMMAND_YET("UR %p:",var);
 }
 
 void commandUS() {
 	/* ローカル変数指定(変数 PUSH) */
-	int *var = getCaliVariable();
+	struct VarRef vref;
+	getCaliArray(&vref);
 	int cnt = getCaliValue();
 	
-	sl_pushVar(var, cnt);
-	DEBUG_COMMAND("US %p,%d:\n",var,cnt);
+	sl_pushVar(&vref, cnt);
+	DEBUG_COMMAND("US %d,%d:", vref.var, cnt);
 }
 
 void commandUG() {
 	/* ローカル変数指定(変数 POP) */
-	int *var = getCaliVariable();
+	struct VarRef vref;
+	getCaliArray(&vref);
 	int cnt = getCaliValue();
 	
-	sl_popVar(var, cnt);
-	DEBUG_COMMAND("UG %p,%d:\n",var,cnt);
+	sl_popVar(&vref, cnt);
+	DEBUG_COMMAND("UG %p,%d:", vref.var, cnt);
 }
 
 void commandUP0() {
@@ -89,7 +91,7 @@ void commandUP0() {
 	int no = getCaliValue();
 	int mode = getCaliValue();
 	
-	DEBUG_COMMAND_YET("UP0 %d,%d:\n",no,mode);
+	DEBUG_COMMAND_YET("UP0 %d,%d:",no,mode);
 }
 
 void commandUP1() {
@@ -97,7 +99,7 @@ void commandUP1() {
 	const char *str = sl_getString(':');
 	int mode = getCaliValue();
 	
-	DEBUG_COMMAND_YET("UP1 %s,%d:\n",str,mode);
+	DEBUG_COMMAND_YET("UP1 %s,%d:",str,mode);
 }
 
 void commandUP3() {
@@ -105,5 +107,5 @@ void commandUP3() {
 	const char *str1 = sl_getString(':');
 	const char *str2 = sl_getString(':');
 	
-	DEBUG_COMMAND_YET("UP3 %s,%s:\n",str1,str2);
+	DEBUG_COMMAND_YET("UP3 %s,%s:",str1,str2);
 }

@@ -33,28 +33,26 @@
 #include "pms.h"
 #include "bmp.h"
 #include "qnt.h"
-#ifdef HAVE_JPEG
 #include "jpeg.h"
-#endif
 #include "ald_manager.h"
 #include "savedata.h"
 #include "cache.h"
 
 /* VSPのパレット展開バンク */
-int cg_vspPB = -1;
+int cg_vspPB;
 /* cg,palette 展開フラグ (funciotn flag) */
-int cg_fflg = 7;
+int cg_fflg;
 /* CGをロードした回数を書き込む変数 */
-int *cg_loadCountVar = NULL;
-/* CGの明度指定 */
-int cg_alphaLevel = 255;
+int *cg_loadCountVar;
+/* Brightness (PD command) */
+int cg_brightness;
 
 #define GCMD_EXTRACTCG(c)    ((c) & 0x01)
 #define GCMD_SET_PALETTE(c)  ((c) & 0x02)
 #define GCMD_LOAD_PALETTE(c) ((c) & 0x04)
 
 /* CG表示位置に関する情報 */
-static CG_WHERETODISP loc_policy = OFFSET_NOMOVE, loc_policy0;
+static CG_WHERETODISP loc_policy, loc_policy0;
 static MyPoint        loc_where, loc_where0;
 
 /* extracted cg data cache control object */
@@ -63,10 +61,9 @@ static cacher *cacheid;
 /* static methods */
 static CG_TYPE check_cgformat(BYTE *data);
 static void set_vspbank(BYTE *pic, int bank, int width, int height);
-static void cgdata_free(cgdata *cg);
 static MyPoint set_display_loc(cgdata *cg);
 static void clear_display_loc();
-static void display_cg(cgdata *cg, int x, int y);
+static void display_cg(cgdata *cg, int x, int y, int sprite_color, bool alpha_blend);
 static cgdata *loader(int no);
 
 
@@ -80,20 +77,18 @@ static CG_TYPE check_cgformat(BYTE *data) {
 		return ALCG_QNT;
 	} else if (pms256_checkfmt(data)) {
 		return ALCG_PMS8;
-	} else if (pms64k_checkfmt(data) && nact->sys_world_depth >= 15) {
+	} else if (pms64k_checkfmt(data) && nact->ags.world_depth >= 15) {
 		return ALCG_PMS16;
-	} else if (bmp16m_checkfmt(data) && nact->sys_world_depth >= 15) {
+	} else if (bmp16m_checkfmt(data) && nact->ags.world_depth >= 15) {
 		return ALCG_BMP24;
 	} else if (bmp256_checkfmt(data)) {
 		return ALCG_BMP8;
 	} else if (vsp_checkfmt(data)) {
 		return ALCG_VSP;
-#ifdef HAVE_JPEG
-	} else if (jpeg_checkfmt(data) && nact->sys_world_depth >= 15) {
+	} else if (jpeg_checkfmt(data) && nact->ags.world_depth >= 15) {
 		return ALCG_JPEG;
-#endif
 	}
-	WARNING("Unknown Cg Type\n");
+	WARNING("Unknown Cg Type");
 	return ALCG_UNKNOWN;
 }
 
@@ -116,7 +111,7 @@ static void set_vspbank(BYTE *pic, int bank, int width, int height) {
  * Free data 
  *  cg: freeing data object
 */
-static void cgdata_free(cgdata *cg) {
+void cgdata_free(cgdata *cg) {
 	if (cg->pic) free(cg->pic);
 	if (cg->pal) free(cg->pal);
 	if (cg->alpha) free(cg->alpha);
@@ -177,25 +172,8 @@ static void clear_display_loc() {
  *  x : display location x
  *  y : display location y
 */ 
-static void display_cg(cgdata *cg, int x, int y) {
-	/* always set cg's alpha level */
-	cg->alphalevel = cg_alphaLevel;
-	
-	/* draw cg */
-	switch(cg->type) {
-	case ALCG_VSP:
-	case ALCG_PMS8:
-	case ALCG_BMP8:
-		ags_drawCg8bit(cg, x, y); break;
-	case ALCG_PMS16:
-	case ALCG_BMP24:
-	case ALCG_JPEG:
-		ags_drawCg16bit(cg, x, y); break;
-	default:
-		break;
-	}
-	
-	/* update drawn area */
+static void display_cg(cgdata *cg, int x, int y, int sprite_color, bool alpha_blend) {
+	ags_drawCg(cg, x, y, cg_brightness, sprite_color, alpha_blend);
 	ags_updateArea(x, y, cg->width, cg->height);
 }
 
@@ -207,7 +185,6 @@ static void display_cg(cgdata *cg, int x, int y) {
 static cgdata *loader(int no) {
 	dridata *dfile;
 	cgdata *cg = NULL;
-	int type, size = 0;
 
 	/* search in cache */
 	if (NULL != (cg = (cgdata *)cache_foreach(cacheid, no))) return cg;
@@ -220,48 +197,37 @@ static cgdata *loader(int no) {
 		(*(cg_loadCountVar + no + 1))++;
 	}
 	
-	/* check loaded cg format */
-	type = check_cgformat(dfile->data);
-	
 	/* extract cg */
-	/*  size is only pixel data size */
-	switch(type) {
+	switch (check_cgformat(dfile->data)) {
 	case ALCG_VSP:
 		cg = vsp_extract(dfile->data);
-		size = cg->width * cg->height;
 		break;
 	case ALCG_PMS8:
 		cg = pms256_extract(dfile->data);
-		size = cg->width * cg->height;
 		break;
 	case ALCG_PMS16:
 		cg = pms64k_extract(dfile->data);
-		size = (cg->width * cg->height) * sizeof(WORD);
 		break;
 	case ALCG_BMP8:
 		cg = bmp256_extract(dfile->data);
-		size = cg->width * cg->height;
 		break;
 	case ALCG_BMP24:
 		cg = bmp16m_extract(dfile->data);
-		size = (cg->width * cg->height) * sizeof(WORD);
 		break;
 	case ALCG_QNT:
 		cg = qnt_extract(dfile->data);
-		size = (cg->width * cg->height) * 3;
 		break;
-#ifdef HAVE_JPEG
 	case ALCG_JPEG:
 		cg = jpeg_extract(dfile->data, dfile->size);
-		size = (cg->width * cg->height) * sizeof(WORD);
 		break;
-#endif
 	default:
 		break;
 	}
 	/* insert to cache */
-	if (cg)
+	if (cg) {
+		int size = cg->width * cg->height * (cg->depth / 8);
 		cache_insert(cacheid, no, cg, size, NULL);
+	}
 	
 	/* ok to free */
 	ald_freedata(dfile);
@@ -272,8 +238,19 @@ static cgdata *loader(int no) {
 /*
  * Initilize cache
 */
-void cg_init() {
+void cg_init(void) {
 	cacheid = cache_new(cgdata_free);
+	cg_reset();
+}
+
+void cg_reset(void) {
+	cg_vspPB = -1;
+	cg_fflg = 7;
+	cg_loadCountVar = NULL;
+	cg_brightness = 255;
+	loc_policy = loc_policy0 = OFFSET_NOMOVE;
+	memset(&loc_where, 0, sizeof(loc_where));
+	memset(&loc_where0, 0, sizeof(loc_where0));
 }
 
 /*
@@ -356,53 +333,22 @@ void cg_load(int no, int flg) {
 	}
 	
 	/* refrect palette change */
-	if (GCMD_SET_PALETTE(cg_fflg)) {
-		switch(cg->type) {
-		case ALCG_VSP:
-		case ALCG_PMS8:
-		case ALCG_BMP8:
-			ags_setPaletteToSystem(0, 256);
-			break;
-		default:
-			break;
-		}
-	}
+	if (GCMD_SET_PALETTE(cg_fflg) && cg->depth == 8)
+		ags_setPaletteToSystem(0, 256);
 	
 	/* draw cg */
-	switch(cg->type) {
-	case ALCG_VSP:
-	case ALCG_PMS8:
-	case ALCG_BMP8:
-		if (GCMD_EXTRACTCG(cg_fflg)) {
-			/* set display offset */
-			p = set_display_loc(cg);
-			/* draw cg pixel */
-			cg->spritecolor = flg;
-			display_cg(cg, p.x, p.y);
-			/* clear display offset */
-			clear_display_loc();
+	if (GCMD_EXTRACTCG(cg_fflg)) {
+		/* set display offset */
+		p = set_display_loc(cg);
+		/* draw alpha pixel */
+		if (cg->alpha) {
+			ags_alpha_setPixel(p.x, p.y, cg->width, cg->height, cg->alpha);
 		}
-		break;
-	case ALCG_PMS16:
-	case ALCG_BMP24:
-	case ALCG_JPEG:
-		if (GCMD_EXTRACTCG(cg_fflg)) {
-			/* set display offset */
-			p = set_display_loc(cg);
-			/* draw alpha pixel */
-			if (cg->alpha) {
-				ags_alpha_setPixel(p.x, p.y, cg->width, cg->height, cg->alpha);
-			}
-			/* draw cg pixel */
-			cg->spritecolor = flg;
-			display_cg(cg, p.x, p.y);
-			/* clear display offset */
-			clear_display_loc();
-		}
-		break;
-	default:
-		break;
-	} 
+		/* draw cg pixel */
+		display_cg(cg, p.x, p.y, flg, flg != -1);
+		/* clear display offset */
+		clear_display_loc();
+	}
 }
 
 /*
@@ -418,7 +364,7 @@ void cg_load_with_alpha(int cgno, int shadowno) {
 	if (cgno >= 0) {
 		if (NULL == (cg = loader(cgno))) return;
 		if (cg->type != ALCG_PMS16) {
-			WARNING("commandGX cg_no != 16bitPMS\n");
+			WARNING("commandGX cg_no != 16bitPMS");
 			return;
 		}
 	}
@@ -426,7 +372,7 @@ void cg_load_with_alpha(int cgno, int shadowno) {
 	/* load alpha pixel */
 	if (NULL == (scg = loader(shadowno))) return;
 	if (scg->type != ALCG_PMS8) {
-		WARNING("commandGX shadow_no != 8bitPMS\n");
+		WARNING("commandGX shadow_no != 8bitPMS");
 		return;
 	}
 	
@@ -438,7 +384,7 @@ void cg_load_with_alpha(int cgno, int shadowno) {
 	/* draw pixel */
 	if (cg) {
 		p = set_display_loc(cg);
-		display_cg(cg, p.x, p.y);
+		display_cg(cg, p.x, p.y, -1, true);
 	}
 	
 	/* clear display offset */
@@ -472,23 +418,18 @@ int cg_load_with_filename(char *fname_utf8, int x, int y) {
 	case ALCG_BMP24:
 		cg = bmp16m_extract(data);
 		break;
-#ifdef HAVE_JPEG
 	case ALCG_JPEG:
 		cg = jpeg_extract(data, filesize);
 		break;
-#endif
 	default:
 		return status;
 	}
 	
 	/* load palette if not extracted */
-	if (GCMD_LOAD_PALETTE(cg_fflg)) {
-		if (cg->type == ALCG_BMP8)
+	if (cg->depth == 8) {
+		if (GCMD_LOAD_PALETTE(cg_fflg))
 			ags_setPalettes(cg->pal, 10, 10, 236);
-	}
-	
-	if (GCMD_SET_PALETTE(cg_fflg)) {
-		if (cg->type == ALCG_BMP8)
+		if (GCMD_SET_PALETTE(cg_fflg))
 			ags_setPaletteToSystem(0, 256);
 	}
 
@@ -497,8 +438,7 @@ int cg_load_with_filename(char *fname_utf8, int x, int y) {
 		/* set display offset */
 		p = set_display_loc(cg);
 		/* draw cg pixel */
-		cg->spritecolor = -1;
-		display_cg(cg, p.x, p.y);
+		display_cg(cg, p.x, p.y, -1, false);
 		/* clear display offset */
 		clear_display_loc();
 	}

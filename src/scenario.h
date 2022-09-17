@@ -27,6 +27,8 @@
 #include "portab.h"
 #include "system.h"
 
+struct VarRef;
+
 // Warning: changing these enum values will break savedata compatibility.
 enum stack_frame_type {
 	STACK_NEARJMP = 1,
@@ -70,8 +72,8 @@ void sl_retFar2(void);
 void sl_stackClear_allCall(void);
 void sl_stackClear_labelCall(int cnt);
 void sl_stackClear_pageCall(int cnt);
-void sl_pushVar(int *topvar, int cnt);
-void sl_popVar(int *topvar, int cnt);
+void sl_pushVar(struct VarRef *vref, int cnt);
+void sl_popVar(struct VarRef *vref, int cnt);
 int *sl_getStackInfo(int *size);
 void sl_putStackInfo(int *data, int size);
 void sl_pushData(int *data, int cnt);
@@ -85,9 +87,9 @@ static inline int sl_getc(void) { return sl_sco[sl_index++]; }
 
 #ifdef DEBUG
 #define DEBUG_COMMAND_YET(fmt, ...) \
-	sys_message(2, "%d,%x: " fmt, sl_getPage(), sl_getIndex(), ##__VA_ARGS__)
+	sys_message(2, "%d,%x: " fmt "\n", sl_getPage(), sl_getIndex(), ##__VA_ARGS__)
 #define DEBUG_COMMAND(fmt, ...) \
-	sys_message(5, "%d,%x: " fmt, sl_getPage(), sl_getIndex(), ##__VA_ARGS__)
+	sys_message(5, "%d,%x: " fmt "\n", sl_getPage(), sl_getIndex(), ##__VA_ARGS__)
 #define DEBUG_MESSAGE(...) sys_message(6, __VA_ARGS__)
 #else
 #define DEBUG_COMMAND(...)

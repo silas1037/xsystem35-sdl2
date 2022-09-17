@@ -30,9 +30,6 @@
 #include "savedata.h"
 #include "utfsjis.h"
 
-#define WARN_SAVEERR(cmd, st) \
-if (st > 200) fprintf(stderr, "WARNING: Fail to save (cmd=%s, stat=%d)\n", cmd, st)
-
 void commandQD() {
 	/* 変数領域などのデータをセーブする。（全セーブ）*/
 	int num   = getCaliValue();
@@ -43,28 +40,27 @@ void commandQD() {
 		sysVar[0] = save_saveAll(num - 1);
 	}
 	
-	WARN_SAVEERR("QD", sysVar[0]);
+	if (sysVar[0] > 200) WARNING("Failed to save (%d)", sysVar[0]);
 	
-	DEBUG_COMMAND("QD %d:\n",num);
+	DEBUG_COMMAND("QD %d:",num);
 }
 
 void commandQP() {
 	/* 変数領域などのデータを一部セーブする。(数値変数部) */
-	int num    = getCaliValue();
-	int *point = getCaliVariable();
-	int page   = preVarPage;
-	int index  = preVarIndex;
-	int cnt    = getCaliValue();
+	struct VarRef point;
+	int num = getCaliValue();
+	getCaliArray(&point);
+	int cnt = getCaliValue();
 	
 	if (num <= 0) {
 		sysVar[0] = 255;
 	} else {
-		sysVar[0] = save_savePartial(num - 1, page, index, cnt);
+		sysVar[0] = save_savePartial(num - 1, &point, cnt);
 	}
 	
-	WARN_SAVEERR("QP", sysVar[0]);
+	if (sysVar[0] > 200) WARNING("Failed to save (%d)", sysVar[0]);
 	
-	DEBUG_COMMAND("QP %d,%p,%d:\n", num, point, cnt);
+	DEBUG_COMMAND("QP %d,%d,%d:", num, point.var, cnt);
 }
 
 void commandQC() {
@@ -78,36 +74,38 @@ void commandQC() {
 		sysVar[0] = save_copyAll(num1 - 1, num2 - 1);
 	}
 	
-	WARN_SAVEERR("QC", sysVar[0]);
+	if (sysVar[0] > 200) WARNING("Failed to save (%d)", sysVar[0]);
 	
-	DEBUG_COMMAND("QC %d,%d:\n",num1,num2);
+	DEBUG_COMMAND("QC %d,%d:",num1,num2);
 }
 
 void commandQE() {
-	int type       = sl_getc();
+	int type = sl_getc();
 	const char *filename = sl_getString(':');
-	int *var, _var = 0, cnt;
+	int var, cnt;
+	struct VarRef vref;
 
 	char *fname_utf8 = toUTF8(filename);
-	switch(type) {
+	switch (type) {
 	case 0:
-		var = getCaliVariable();
+		getCaliArray(&vref);
+		var = vref.var;
 		cnt = getCaliValue();
-		sysVar[0] = save_save_var_with_file(fname_utf8, var, cnt);
+		sysVar[0] = save_vars_to_file(fname_utf8, &vref, cnt);
 		break;
 	case 1:
-		_var = getCaliValue();
-		cnt  = getCaliValue();
-		sysVar[0] = save_save_str_with_file(fname_utf8, _var, cnt);
+		var = getCaliValue();
+		cnt = getCaliValue();
+		sysVar[0] = save_save_str_with_file(fname_utf8, var, cnt);
 		break;
 	default:
-		_var = getCaliValue();
-		cnt  = getCaliValue();
-		WARNING("Unknown QE command %d\n", type);
+		var = getCaliValue();
+		cnt = getCaliValue();
+		WARNING("Unknown QE command %d", type);
 		break;
 	}
 	free(fname_utf8);
-	WARN_SAVEERR("QE", sysVar[0]);
+	if (sysVar[0] > 200) WARNING("Failed to save (%d)", sysVar[0]);
 	
-	DEBUG_COMMAND("QE %d,%s,%d,%d:\n", type, filename, _var, cnt);
+	DEBUG_COMMAND("QE %d,%s,%d,%d:", type, filename, var, cnt);
 }

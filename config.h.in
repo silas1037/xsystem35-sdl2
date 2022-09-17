@@ -1,5 +1,5 @@
 #cmakedefine PACKAGE "@PACKAGE@"
-#define VERSION "2.2.0"
+#define VERSION "2.5.1"
 
 #cmakedefine CMAKE_SYSTEM_NAME "@CMAKE_SYSTEM_NAME@"
 
@@ -25,9 +25,7 @@
 #cmakedefine SEQ_DEVICE "@SEQ_DEVICE@"
 
 #cmakedefine HAVE_GETLOGIN @HAVE_GETLOGIN@
-#cmakedefine HAVE_JPEG @HAVE_JPEG@
 #cmakedefine HAVE_MMAP @HAVE_MMAP@
-#cmakedefine HAVE_SDLJOY @HAVE_SDLJOY@
 #cmakedefine HAVE_SIGACTION @HAVE_SIGACTION@
 #cmakedefine HAVE_UNAME @HAVE_UNAME@
 #cmakedefine HAVE_WEBP @HAVE_WEBP@

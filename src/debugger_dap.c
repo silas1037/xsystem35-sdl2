@@ -31,6 +31,7 @@
 #include "debugger_private.h"
 #include "debug_symbol.h"
 #include "msgqueue.h"
+#include "sdl_core.h"
 #include "system.h"
 #include "nact.h"
 #include "variable.h"
@@ -294,6 +295,7 @@ static void cmd_evaluate(cJSON *args, cJSON *resp) {
 }
 
 static void cmd_continue(cJSON *args, cJSON *resp) {
+	sdl_raiseWindow();
 	cJSON_AddBoolToObject(resp, "success", true);
 }
 
@@ -372,7 +374,11 @@ static void cmd_variables(cJSON *args, cJSON *resp) {
 			cJSON_AddItemToArray(variables, var);
 			cJSON_AddStringToObject(var, "name", dsym_variable_name(symbols, i));
 			char value[20];
-			sprintf(value, "%d", *v_ref(i));
+			int *store = v_ref(i, NULL);
+			if (store)
+				sprintf(value, "%d", *store);
+			else
+				strcpy(value, "(Out of bounds)");
 			cJSON_AddStringToObject(var, "value", value);
 			cJSON_AddNumberToObject(var, "variablesReference", 0);
 		}
@@ -424,13 +430,19 @@ static void cmd_setVariable(cJSON *args, cJSON *resp) {
 			cJSON_AddStringToObject(resp, "message", "syntax error");
 			return;
 		}
-		*v_ref(var) = parsed_value & 0xffff;
+		int *store = v_ref(var, NULL);
+		if (!store) {
+			cJSON_AddBoolToObject(resp, "success", false);
+			cJSON_AddStringToObject(resp, "message", "out of bounds array access");
+			return;
+		}
+		*store = parsed_value & 0xffff;
 
 		cJSON *body;
 		cJSON_AddBoolToObject(resp, "success", true);
 		cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
 		char new_value[20];
-		sprintf(new_value, "%d", *v_ref(var));
+		sprintf(new_value, "%d", *store);
 		cJSON_AddStringToObject(body, "value", new_value);
 	} else if (cJSON_IsNumber(vref) && vref->valueint == VREF_STRINGS) {
 		int idx;
@@ -588,7 +600,7 @@ static void dbg_dap_quit(void) {
 	emit_terminated_event();
 }
 
-static void dbg_dap_repl(void) {
+static void dbg_dap_repl(int bp_no) {
 	emit_stopped_event();
 	dbg_state = DBG_RUNNING;
 
@@ -609,7 +621,7 @@ static void dbg_dap_onsleep(void) {
 		handle_message(msg);
 	}
 	if (dbg_state == DBG_STOPPED_INTERRUPT || dbg_state == DBG_STOPPED_EXCEPTION)
-		dbg_main();
+		dbg_main(0);
 }
 
 DebuggerImpl dbg_dap_impl = {

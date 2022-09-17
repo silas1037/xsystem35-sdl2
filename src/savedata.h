@@ -108,18 +108,17 @@ typedef struct {
 	emscripten_align1_int rsv2;
 } Ald_sysVarHdr;
 
-/* defined by cmdb.c */
-extern Bcom_WindowInfo selWinInfo[];
 /* defined by variable.c */
 extern int  strvar_len;
+struct VarRef;
 
 extern int save_loadAll(int no);
 extern int save_saveAll(int no);
-extern int save_loadPartial(int no, int page, int offset, int cnt);
-extern int save_savePartial(int no, int page, int offset, int cnt);
+extern int save_loadPartial(int no, struct VarRef *vref, int cnt);
+extern int save_savePartial(int no, struct VarRef *vref, int cnt);
 extern int save_copyAll(int dstno, int srcno);
-extern int save_save_var_with_file(char *fname_utf8, int *start, int cnt);
-extern int save_load_var_with_file(char *fname_utf8, int *start, int cnt);
+extern int save_vars_to_file(char *fname_utf8, struct VarRef *src, int cnt);
+extern int load_vars_from_file(char *fname_utf8, struct VarRef *dest, int cnt);
 extern int save_save_str_with_file(char *fname_utf8, int start, int cnt);
 extern int save_load_str_with_file(char *fname_utf8, int start, int cnt);
 extern BYTE* load_cg_with_file(char *fname_utf8, int *status, long *filesize);

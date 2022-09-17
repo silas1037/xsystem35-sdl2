@@ -59,7 +59,8 @@ static struct {
 
 static void send_reset();
 static int midi_initilize(char *devnm, int subdev);
-static int midi_exit();
+static int midi_exit(void);
+static int midi_reset(void);
 static int midi_start(int no, int loop, char *data, int datalen);
 static int midi_stop();
 static int midi_pause(void);
@@ -83,6 +84,7 @@ static void seq_mywrite(unsigned char *d, int n, int p);
 mididevice_t midi_rawmidi = {
 	midi_initilize,
 	midi_exit,
+	midi_reset,
 	midi_start,
 	midi_stop,
 	midi_pause,
@@ -197,7 +199,7 @@ static int midi_subdev;
 void seqbuf_dump(void) {
 	if (_seqbufptr) {
 		if (write(midifd, _seqbuf, _seqbufptr) == -1)
-			WARNING("write: %s\n", strerror(errno));
+			WARNING("write: %s", strerror(errno));
 	}
 	_seqbufptr = 0;
 }
@@ -316,7 +318,7 @@ static void *midi_mainloop(struct midiinfo *midi) {
 				break;
 			}
 		} else {
-			WARNING("Unknown type of event %x (NEVER!).\n", midi->event[i].type);
+			WARNING("Unknown type of event %x (NEVER!).", midi->event[i].type);
 		}
 	}
 	return NULL;
@@ -339,14 +341,14 @@ static int midi_initilize(char *devnm, int subdev) {
 #ifdef ENABLE_MIDI_RAWMIDI
 		myflush = raw_myflush;
 		mywrite = raw_mywrite;
-		NOTICE("RAWMIDI Initilize OK\n");
+		NOTICE("RAWMIDI Initilize OK");
 #endif
 	} else {
 #ifdef ENABLE_MIDI_SEQMIDI
 		myflush = seq_myflush;
 		mywrite = seq_mywrite;
 		midi_subdev = subdev;
-		NOTICE("SEQMIDI Initilize OK\n");
+		NOTICE("SEQMIDI Initilize OK");
 #endif
 	}
 	
@@ -354,7 +356,14 @@ static int midi_initilize(char *devnm, int subdev) {
 	return OK;
 }
 
-static int midi_exit() {
+static int midi_exit(void) {
+	if (enabled) {
+		midi_stop();
+	}
+	return OK;
+}
+
+static int midi_reset(void) {
 	if (enabled) {
 		midi_stop();
 	}
@@ -383,12 +392,12 @@ static int midi_start(int no, int loop, char *data, int datalen) {
 
 	struct midiinfo *midi = mf_read_midifile(data, datalen);
 	if (!midi) {
-		WARNING("error reading midi file\n");
+		WARNING("error reading midi file");
 		return NG;
 	}
 
 	if (0 > (midifd = open(mididevname, O_RDWR))) {
-		WARNING("error opening %s: %s\n", mididevname, strerror(errno));
+		WARNING("error opening %s: %s", mididevname, strerror(errno));
 		mf_remove_midifile(midi);
 		return NG;
 	}
@@ -397,7 +406,7 @@ static int midi_start(int no, int loop, char *data, int datalen) {
 	{
 		int nrsynths;
 		if (-1 == ioctl(mididev,  SNDCTL_SEQ_NRSYNTHS, &nrsynths)) {
-			WARNING("SNDCTL_SEQ_NRSYNTHS: %s\n", strerror(errno));
+			WARNING("SNDCTL_SEQ_NRSYNTHS: %s", strerror(errno));
 			mf_remove_midifile(midi);
 			close(midifd);
 			midifid = -1;

@@ -21,6 +21,7 @@
 */
 /* $Id: cdrom.FreeBSD.c,v 1.17 2002/08/18 09:35:29 chikama Exp $ */
 
+#include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,9 +33,11 @@
 #include "portab.h"
 #include "cdrom.h"
 #include "music_private.h"
+#include "system.h"
 
 static int  cdrom_init(char *);
-static int  cdrom_exit();
+static int  cdrom_exit(void);
+static int  cdrom_reset(void);
 static int  cdrom_start(int, int);
 static int  cdrom_stop();
 static int  cdrom_getPlayingInfo(cd_time *);
@@ -43,6 +46,7 @@ static int  cdrom_getPlayingInfo(cd_time *);
 cdromdevice_t cdrom = {
 	cdrom_init,
 	cdrom_exit,
+	cdrom_reset,
 	cdrom_start,
 	cdrom_stop,
 	cdrom_getPlayingInfo,
@@ -77,14 +81,14 @@ static int get_cd_entry() {
 
 	/* 最終トラック番号を得る */
 	if (do_ioctl(CDIOREADTOCHEADER, &tochdr) < 0) {
-		perror("CDIOREADTOCHEADER");
+		WARNING("CDIOREADTOCHEADER: %s", strerror(errno));
 		return NG;
 	}
 	
 	lastindex = endtrk = tochdr.ending_track;
 	i = tochdr.ending_track - tochdr.starting_track + 1;
 	if (endtrk <= 1) {  /* ２トラック以上ないとダメ */
-		fprintf(stderr, "No CD-AUDIO in CD-ROM\n");
+		WARNING("No CD-AUDIO in CD-ROM");
 		return NG;
 	}
 	
@@ -96,7 +100,7 @@ static int get_cd_entry() {
 	toc.data_len = (i + 1) * sizeof(struct cd_toc_entry);
 	toc.data = toc_buffer;
 	if (do_ioctl(CDIOREADTOCENTRYS, &toc) < 0) {
-		perror("CDIOREADTOCENTRYS");
+		WARNING("CDIOREADTOCENTRYS: %s", strerror(errno));
 		return NG;
 	}
 
@@ -113,13 +117,13 @@ static int get_cd_entry() {
 	msf.end_s   = toc_buffer[2].addr.msf.second;
 	msf.end_f   = toc_buffer[2].addr.msf.frame;
 	if (do_ioctl(CDIOCPLAYMSF, &msf) < 0) {
-		perror("CDIOPLAYMSF");
-		fprintf(stderr, "CD-ROM: change TRKMODE\n");
+		WARNING("CDIOPLAYMSF: %s", strerror(errno));
+		WARNING("CD-ROM: change TRKMODE");
 		msfmode = FALSE;
 	}
 	/* stop */
 	if (do_ioctl(CDIOCSTOP, NULL) < 0) {
-		perror("CDIOCSTOP");
+		WARNING("CDIOCSTOP: %s", strerror(errno));
 		return NG;
 	}
 	return OK;
@@ -130,7 +134,7 @@ int cdrom_init(char *dev_cd) {
 	if (dev_cd == NULL) return NG;
 
 	if ((cd_fd = open(dev_cd, O_RDONLY, 0)) < 0) {
-		perror("CDROM_DEVICE OPEN");
+		WARNING("CDROM_DEVICE OPEN: %s", strerror(errno));
 		enabled = FALSE;
 		return NG;
 	}
@@ -143,12 +147,16 @@ int cdrom_init(char *dev_cd) {
 }
 
 /* デバイスの後始末 */
-int cdrom_exit() {
+int cdrom_exit(void) {
 	if (enabled) {
 		cdrom_stop();
 		close(cd_fd);
 	}
 	return OK;
+}
+
+int cdrom_reset(void) {
+	return cdrom_stop();
 }
 
 /* トラック番号 trk の演奏 trk = 1~ */
@@ -163,9 +171,9 @@ int cdrom_start(int trk, int loop) {
 		return NG;
 	}
 	/* drive spin up */
-        if (do_ioctl(CDIOCSTART, NULL) < 0) {
-		perror("CDIOCSTART");
-                return NG;
+	if (do_ioctl(CDIOCSTART, NULL) < 0) {
+		WARNING("CDIOCSTART: %s", strerror(errno));
+		return NG;
 	}
 	if (msfmode) {
 		msf.start_m = toc_buffer[trk - 1].addr.msf.minute;
@@ -175,14 +183,14 @@ int cdrom_start(int trk, int loop) {
 		msf.end_s = toc_buffer[trk].addr.msf.second;
 		msf.end_f = toc_buffer[trk].addr.msf.frame;
 		if (do_ioctl(CDIOCPLAYMSF, &msf) < 0) {
-			perror("CDIOPLAYMSF");
+			WARNING("CDIOPLAYMSF: %s", strerror(errno));
 			return NG;
 		}
 	} else {
 		track.start_track = track.end_track = trk;
 		track.start_index = track.end_index = 0;
 		if (do_ioctl(CDIOCPLAYTRACKS, &track) < 0) {
-			perror("CDIOCPLAYTRACKS");
+			WARNING("CDIOCPLAYTRACKS: %s", strerror(errno));
 			return NG;
 		}
 	}
@@ -194,8 +202,8 @@ int cdrom_stop() {
 	if (enabled) {
 		/* if (do_ioctl(CDIOCSTOP, NULL) < 0) { */
 		if (do_ioctl(CDIOCPAUSE, NULL) < 0) {
-			/* perror("CDIOCSTOP"); */
-			perror("CDIOCPAUSE");
+			/* WARNING("CDIOCSTOP: %s", strerror(errno)); */
+			WARNING("CDIOCPAUSE: %s", strerror(errno));
 		}
 		return OK;
 	}
@@ -216,7 +224,7 @@ int cdrom_getPlayingInfo (cd_time *info) {
         s.address_format = CD_MSF_FORMAT;
         s.data_format = CD_CURRENT_POSITION;
 	if (do_ioctl(CDIOCREADSUBCHANNEL, &s) < 0) {
-		perror("CDIOCREADSUBCHANNEL");
+		WARNING("CDIOCREADSUBCHANNEL: %s", strerror(errno));
 		return NG;
 	}
 	if (s.data->header.audio_status != CD_AS_PLAY_IN_PROGRESS) {

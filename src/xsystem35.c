@@ -73,16 +73,14 @@
 #include "s39init.h"
 #include "msgskip.h"
 
-#ifdef ENABLE_MMX
-#include "haveunit.h"
-#endif
-
 static char *gameResourceFile = "xsystem35.gr";
 static void    sys35_usage(boolean verbose);
 static void    sys35_init();
 static void    sys35_remove();
 static void    sys35_ParseOption(int *argc, char **argv);
 static void    check_profile();
+
+static char *render_driver = NULL;
 
 /* for debugging */
 static int debuglv = DEBUGLEVEL;
@@ -103,10 +101,6 @@ static boolean font_noantialias;
 /* fullscreen on from command line */
 static boolean fs_on;
 
-// for reboot
-static int saved_argc;
-static char **saved_argv;
-
 static void sys35_usage(boolean verbose) {
 	if (verbose) {
 		puts("System35 for X Window System [proj. Rainy Moon]");
@@ -116,6 +110,7 @@ static void sys35_usage(boolean verbose) {
 	puts("Usage: xsystem35 [OPTIONS]\n");
 	puts("OPTIONS");
 	puts(" -gamefile file : set game resource file to 'file'");
+	puts(" -renderer name : set rendering driver name to 'name'");
 	puts(" -devcd device  : set cdrom device name to 'device'");
 	puts(" -devmidi device: set midi device name to 'device'");
 	
@@ -211,25 +206,18 @@ static void sys35_init() {
 	
 	sl_init();
 
-	v_initVars();
+	v_init();
 	
-	ags_init();
+	ags_init(render_driver);
 
 	for (i = 0; i < FONTTYPEMAX; i++)
 		font_set_name_and_index(i, fontname_tt[i], fontface[i]);
 	
 	sdl_setFullscreen(fs_on);
-	nact->noantialias = font_noantialias;
+	nact->ags.noantialias = font_noantialias;
 	ags_setAntialiasedStringMode(!font_noantialias);
 
 	sgenrand(getpid());
-
-#ifdef ENABLE_MMX
-	nact->mmx_is_ok = ((haveUNIT() & tMMX) ? TRUE : FALSE);
-#endif
-
-	msg_init();
-	sel_init();
 
 	if (nact->files.ain)
 		s39ain_init(nact->files.ain, &nact->ain);
@@ -245,15 +233,11 @@ static void sys35_remove() {
 #endif
 }
 
-void sys_reset() {
-	mus_exit();
-	ags_remove();
-#ifdef ENABLE_GTK
-	s39ini_remove();
-#endif
-	
-	execvp(saved_argv[0], saved_argv);
-	sys_error("exec fail");
+static void sys_reset(void) {
+	nact_reset();
+	ags_reset();
+	mus_reset();
+	s39ain_reset(&nact->ain);
 }
 
 static void sys35_ParseOption(int *argc, char **argv) {
@@ -283,6 +267,8 @@ static void sys35_ParseOption(int *argc, char **argv) {
 			debugger_mode = DEBUGGER_CUI;
 		} else if (0 == strcmp(argv[i], "-debug_dap")) {
 			debugger_mode = DEBUGGER_DAP;
+		} else if (0 == strcmp(argv[i], "-renderer")) {
+			render_driver = argv[i + 1];
 		} else if (0 == strcmp(argv[i], "-devcd")) {
 			if (argv[i + 1] != NULL) {
 				cd_set_devicename(argv[i + 1]);
@@ -314,7 +300,7 @@ static void sys35_ParseOption(int *argc, char **argv) {
 				fontname_tt[FONT_MINCHO] = argv[i + 1];
 			}
 		} else if (0 == strcmp(argv[i], "-noimagecursor")) {
-			nact->noimagecursor = TRUE;
+			nact->ags.noimagecursor = TRUE;
 		} else if (0 == strcmp(argv[i], "-debuglv")) {
 			if (argv[i + 1] != NULL) {
 				debuglv = argv[i + 1][0] - '0';
@@ -364,6 +350,12 @@ static void check_profile() {
 		audio_buffer_size = atoi(param);
 	}
 
+	/* Rendering driver */
+	param = get_profile("render_driver");
+	if (param) {
+		render_driver = param;
+	}
+
 	/* CD-ROM device name の設定 */
 	param = get_profile("cdrom_device");
 	if (param) {
@@ -392,7 +384,7 @@ static void check_profile() {
 	param = get_profile("no_imagecursor");
 	if (param) {
 		if (0 == strcmp(param, "Yes")) {
-			nact->noimagecursor = TRUE;
+			nact->ags.noimagecursor = TRUE;
 		}
 	}
 	/* enable integer scaling */
@@ -459,9 +451,6 @@ int main(int argc, char **argv) {
 	sys_set_signalhandler(SIGINT, SIG_IGN);
 #endif
 	
-	saved_argc = argc;
-	saved_argv = argv;
-
 #ifdef __ANDROID__
 	// Handle -gamedir option here so that .xsys35rc is loaded from that directory.
 	if (strcmp(argv[1], "-gamedir") == 0)
@@ -513,11 +502,25 @@ int main(int argc, char **argv) {
 		dbg_init(symbols_path, debugger_mode == DEBUGGER_DAP);
 	}
 
-	nact_main();
-#ifdef __EMSCRIPTEN__
-	sdl_sleep(1000000000);
+	for (;;) {
+		nact_main();
+#ifndef __EMSCRIPTEN__
+		if (!nact->restart)
+			break;
 #endif
+		sys_reset();
+	}
+
 	sys35_remove();
 	
 	return 0;
 }
+
+#ifdef __EMSCRIPTEN__
+
+EMSCRIPTEN_KEEPALIVE
+void sys_restart(void) {
+	nact_quit(TRUE);
+}
+
+#endif

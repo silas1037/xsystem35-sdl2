@@ -35,7 +35,8 @@
 #include "music_private.h"
 
 static int cdrom_init(char *);
-static int cdrom_exit();
+static int cdrom_exit(void);
+static int cdrom_reset(void);
 static int cdrom_start(int, int);
 static int cdrom_stop();
 static int cdrom_getPlayingInfo(cd_time *);
@@ -44,6 +45,7 @@ static int cdrom_getPlayingInfo(cd_time *);
 cdromdevice_t cdrom = {
 	cdrom_init,
 	cdrom_exit,
+	cdrom_reset,
 	cdrom_start,
 	cdrom_stop,
 	cdrom_getPlayingInfo,
@@ -70,7 +72,7 @@ static int cdrom_init(char *playlist_path) {
 		fp = fopen("_inmm.ini", "r");
 	}
 	if (!fp) {
-		NOTICE("cdrom: Cannot open playlist %s\n", playlist_path);
+		NOTICE("cdrom: Cannot open playlist %s", playlist_path);
 		return NG;
 	}
 
@@ -91,14 +93,21 @@ static int cdrom_init(char *playlist_path) {
 		}
 	}
 	fclose(fp);
-	NOTICE("cdrom: Loaded playlist from %s\n", playlist_path);
+	NOTICE("cdrom: Loaded playlist from %s", playlist_path);
 	
 	trackno = 0;
 	enabled = TRUE;
 	return OK;
 }
 
-static int cdrom_exit() {
+static int cdrom_exit(void) {
+	if (enabled) {
+		cdrom_stop();
+	}
+	return OK;
+}
+
+static int cdrom_reset(void) {
 	if (enabled) {
 		cdrom_stop();
 	}
@@ -126,7 +135,7 @@ static int cdrom_start(int trk, int loop) {
 #endif
 
 	if (!mix_music) {
-		WARNING("Cannot load %s: %s\n", playlist[trk], Mix_GetError());
+		WARNING("Cannot load %s: %s", playlist[trk], Mix_GetError());
 		return NG;
 	}
 	if (Mix_PlayMusic(mix_music, loop == 0 ? -1 : loop) != 0) {

@@ -35,7 +35,7 @@ void commandWW() {
 	
 	ags_setWorldSize(x_size, y_size, color);
 	
-        DEBUG_COMMAND("WW %d,%d,%d:\n",x_size, y_size, color);
+        DEBUG_COMMAND("WW %d,%d,%d:",x_size, y_size, color);
 }
 
 void commandWV() {
@@ -48,7 +48,7 @@ void commandWV() {
 	ags_setViewArea(start_x, start_y, size_x, size_y);
 	ags_updateFull();
 	
-	DEBUG_COMMAND("WV %d,%d,%d,%d:\n",start_x,start_y,size_x, size_y);
+	DEBUG_COMMAND("WV %d,%d,%d,%d:",start_x,start_y,size_x, size_y);
 }
 
 void commandWZ() {
@@ -60,7 +60,7 @@ void commandWZ() {
 		ags_setExposeSwitch(sw == 0 ? FALSE : TRUE);
 		if (sw == 1) {
 			/* う〜ん こんな処理いれなあかんのかぁ〜 (T_T) */
-			if (nact->sys_world_depth == 8) nact->sys_pal_changed = TRUE;
+			if (nact->ags.world_depth == 8) nact->ags.pal_changed = TRUE;
 			ags_updateFull();
 		}
 		break;
@@ -70,7 +70,7 @@ void commandWZ() {
 	default:
 		break;
 	}
-	DEBUG_COMMAND("WZ %d,%d:\n", p1, sw);
+	DEBUG_COMMAND("WZ %d,%d:", p1, sw);
 }
 
 void commandWX() {
@@ -83,5 +83,5 @@ void commandWX() {
 	ags_setExposeSwitch(TRUE);
 	ags_updateArea(x0, y0, cx, cy);
 	
-	DEBUG_COMMAND("WX %d,%d,%d,%d:\n", x0, y0, cx, cy);
+	DEBUG_COMMAND("WX %d,%d,%d,%d:", x0, y0, cx, cy);
 }

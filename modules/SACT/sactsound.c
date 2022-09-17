@@ -67,6 +67,7 @@ static int slt_find(int no) {
 int ssnd_init() {
 	// ch 1-8 をキャッシュとして使おう
 	cachei = 0;
+	memset(cache, 0, sizeof(cache));
 	return OK;
 }
 
@@ -166,7 +167,7 @@ int ssnd_playLRrev(int no) {
 
 // 指定の番号の効果音が存在するかどうかをチェック
 int ssnd_getlinknum(int no) {
-	WARNING("NOT IMPLEMENTED\n");
+	WARNING("NOT IMPLEMENTED");
 	return OK;
 }
 

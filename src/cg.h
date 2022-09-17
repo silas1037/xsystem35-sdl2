@@ -51,6 +51,7 @@ typedef struct {
 	int y;           // default display location y
 	int width;       // image width
 	int height;      // image height
+	int depth;       // pixel depth (8, 16 or 24)
 	
 	BYTE *pic;       // extracted pixel data
 	BYTE *alpha;     // extracted alpha data if exists
@@ -58,11 +59,6 @@ typedef struct {
 	
 	int vsp_bank;    // palette bank for vsp
 	int pms_bank;    // palette bank for pms
-	
-	int spritecolor; // sprite color for vsp and pms8
-	int alphalevel;  // alpha level of image
-	
-	int data_offset; // pic offset for clipping
 } cgdata;
 
 /*
@@ -76,17 +72,19 @@ typedef enum {
 	OFFSET_RELATIVE_JC   /* relative location and use til J4 cmd */
 } CG_WHERETODISP;
 
-extern void cg_init();
+extern void cg_init(void);
+extern void cg_reset(void);
 extern void cg_set_display_location(int x, int y, CG_WHERETODISP policy);
 extern void cg_load(int no, int flg);
 extern void cg_load_with_alpha(int cgno, int shadowno);
 extern int  cg_load_with_filename(char *fname_utf8, int x, int y);
 extern void cg_get_info(int no, MyRectangle *info);
 extern void cg_clear_display_loc();
+extern void cgdata_free(cgdata *cg);
 
 extern int cg_vspPB;
 extern int cg_fflg;
 extern int *cg_loadCountVar;
-extern int cg_alphaLevel;
+extern int cg_brightness;
 
 #endif /* !__CG__ */

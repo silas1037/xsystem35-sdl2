@@ -28,7 +28,6 @@ check_symbol_exists(sigaction "signal.h" HAVE_SIGACTION)
 check_symbol_exists(uname "sys/utsname.h" HAVE_UNAME)
 
 if (EMSCRIPTEN)
-  set(HAVE_JPEG 1)
   set(DEFAULT_FONT_PATH /fonts/)
 elseif (ANDROID)
   set(SDL2MIXER_FOUND 1)
@@ -57,11 +56,6 @@ else()
         message(FATAL_ERROR "libcjson is required but not found.")
       endif()
     endif()
-  endif()
-
-  include(FindJPEG)
-  if (JPEG_FOUND)
-    set(HAVE_JPEG 1)
   endif()
 
   optional_pkg_check_modules(WEBP IMPORTED_TARGET libwebp)
@@ -183,14 +177,6 @@ else()
   endif()
 endif()
 
-# Joystick
-
-if (NOT EMSCRIPTEN AND NOT ANDROID)
-  set(HAVE_SDLJOY 1)
-endif()
-
-# TODO: MMX
-
 function (print_summary name)
   if (ARGN)
     list(JOIN ARGN ", " MSG)
@@ -205,7 +191,6 @@ message("------------------")
 print_summary(audio ${SUMMARY_AUDIO})
 print_summary(cdrom ${SUMMARY_CDROM})
 print_summary(midi ${SUMMARY_MIDI})
-print_summary(joystick ${SUMMARY_JOYSTICK})
 message("------------------")
 
 set(PACKAGE ${PROJECT_NAME})

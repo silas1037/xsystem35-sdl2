@@ -30,7 +30,7 @@ static struct _scoadr scene2adr(int no) {
 	struct _scoadr adr = {0, 0};
 	
 	snprintf(label, 7, "E%05d", no);
-	SACT_DEBUG("seaching %6s\n", label);
+	SACT_DEBUG("seaching %6s", label);
 	for (i = 0; i < nact->ain.fncnum; i++) {
 		if (0 == strncmp(nact->ain.fnc[i].name, label, 6)) {
 			adr.page  = nact->ain.fnc[i].page;
@@ -39,7 +39,7 @@ static struct _scoadr scene2adr(int no) {
 		}
 	}
 	
-	WARNING("no scene %d\n", no);
+	WARNING("no scene %d", no);
 	return adr;
 }
 
@@ -52,8 +52,8 @@ static void ntmain(struct _scoadr inadr) {
 	struct _scoadr curadr;
 
 	while (!nact->is_quit) {
-		for (int cnt = 0; !nact->wait_vsync && cnt < 10000; cnt++) {
-			//SACT_DEBUG("%d:%x\n", sl_getPage(), sl_getIndex());
+		for (int cnt = 0; !nact->is_quit && !nact->wait_vsync && cnt < 10000; cnt++) {
+			//SACT_DEBUG("%d:%x", sl_getPage(), sl_getIndex());
 			if (!nact->popupmenu_opened) {
 				exec_command();
 				if (sl_getPage()  == inadr.page &&
@@ -70,9 +70,7 @@ static void ntmain(struct _scoadr inadr) {
 			}
 			nact->callback();
 		}
-		if (!nact->is_message_locked) {
-			sys_getInputInfo();
-		}
+		sys_getInputInfo();
 		sdl_wait_vsync();
 		nact->frame_count++;
 		nact->wait_vsync = FALSE;

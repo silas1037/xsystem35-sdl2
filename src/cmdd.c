@@ -31,10 +31,10 @@ void commandDC() {
 	int page = getCaliValue();
 	int maxindex = getCaliValue();
 	int save = getCaliValue();
-	
-	if (!v_allocateArrayBuffer(page, maxindex + 1, save == 0 ? false : true))
-		WARNING("commandDC(): Array allocate failed\n");
-	DEBUG_COMMAND("DC %d,%d,%d:\n", page, maxindex, save);
+
+	if (!v_allocatePage(page, maxindex + 1, !!save))
+		WARNING("Array allocation failed: page=%d size=%d", page, maxindex);
+	DEBUG_COMMAND("DC %d,%d,%d:", page, maxindex, save);
 }
 
 void commandDI() {
@@ -42,52 +42,51 @@ void commandDI() {
 	int *var_use  = getCaliVariable();
 	int *var_size = getCaliVariable();
 	
-	*var_use = v_getArrayBufferStatus(page);
-	*var_size = arrayVarBuffer[page - 1].size & 0xffff;
+	v_getPageStatus(page, var_use, var_size);
 
-	DEBUG_COMMAND("DI %d,%p,%p:\n", page, var_use, var_size);
+	DEBUG_COMMAND("DI %d,%p,%p:", page, var_use, var_size);
 }
 
 void commandDS() {
+	struct VarRef data_var;
 	int *point_var = getCaliVariable();
-	int *data_var  = getCaliVariable();
-	int varno      = preVarNo;
+	getCaliArray(&data_var);
 	int offset     = getCaliValue();
 	int page       = getCaliValue();
 	
-	DEBUG_COMMAND("DS %p,%p,%d,%d:\n",point_var, data_var, offset, page);
-	if (!v_defineArrayVar(varno, point_var, offset, page)) {
-		WARNING("commandDS(): Array allocate failed\n");
-		WARNING("if you are playing 'Pastel Chime', please patch to scenario(see patch/README.TXT for detail)\n");
+	DEBUG_COMMAND("DS %p,%d,%d,%d:",point_var, data_var.var, offset, page);
+	if (!v_bindArray(data_var.var, point_var, offset, page)) {
+		WARNING("commandDS(): Array allocate failed");
+		WARNING("if you are playing 'Pastel Chime', please patch to scenario(see patch/README.TXT for detail)");
 	}
 }
 
 
 void commandDR() {
-	int *data_var = getCaliVariable();
-	v_releaseArrayVar(preVarNo);
+	struct VarRef data_var;
+	getCaliArray(&data_var);
+	v_unbindArray(data_var.var);
 	
-	DEBUG_COMMAND("DR %p:\n", data_var);
+	DEBUG_COMMAND("DR %d:", data_var.var);
 }
 
 void commandDF() {
-	int *data_var = getCaliVariable();
-	int page      = preVarPage;
-	int offset    = preVarIndex;
-	int cnt       = getCaliValue();
-	int data      = getCaliValue();
+	struct VarRef data_var;
+	getCaliArray(&data_var);
+	int cnt  = getCaliValue();
+	int data = getCaliValue();
 	
-	DEBUG_COMMAND("DF %p,%d,%d:\n", data_var, cnt, data);
+	DEBUG_COMMAND("DF %p,%d,%d:", data_var, cnt, data);
 
-	if (page) {
-		int maxlen = arrayVarBuffer[page - 1].size - offset;
+	if (data_var.page) {
+		int maxlen = v_sliceSize(&data_var);
 		if (cnt > maxlen) {
-			WARNING("%03d:%05x: count exceeds array boundary (%d > %d)\n", sl_getPage(), sl_getIndex(), cnt, maxlen);
+			WARNING("%03d:%05x: count exceeds array boundary (%d > %d)", sl_getPage(), sl_getIndex(), cnt, maxlen);
 			cnt = maxlen;
 		}
 	}
 
-	while (cnt--) {
-		*data_var = data; data_var++;
-	}
+	int *p = v_resolveRef(&data_var);
+	while (cnt--)
+		*p++ = data;
 }
